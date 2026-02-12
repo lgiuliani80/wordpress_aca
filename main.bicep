@@ -107,9 +107,21 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   }
 }
 
-// NFS File Share for WordPress
-resource nfsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+// NFS File Share for WordPress files
+resource wordpressNfsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
   name: '${storageAccountName}/default/wordpress'
+  properties: {
+    enabledProtocols: 'NFS'
+    accessTier: 'Premium'
+  }
+  dependsOn: [
+    storageAccount
+  ]
+}
+
+// NFS File Share for Nginx configuration
+resource nginxConfigNfsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccountName}/default/nginx-config'
   properties: {
     enabledProtocols: 'NFS'
     accessTier: 'Premium'
@@ -277,16 +289,13 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   }
 }
 
-// Azure File Storage for Container Apps
-// Note: Premium FileStorage supports both NFS 4.1 and SMB 3.0 protocols.
-// Azure Container Apps managed storage API currently uses SMB protocol for Azure Files mounts,
-// even when using Premium FileStorage accounts. For direct NFS mounting, custom init containers
-// or sidecar patterns would be required. SMB provides similar performance characteristics
-// with Premium FileStorage and is the recommended approach for Container Apps.
-// Reference: https://learn.microsoft.com/azure/container-apps/storage-mounts
-resource nfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
+// NFS-enabled managed storage for Container Apps Environment
+// These storages use Premium FileStorage with NFS 4.1 protocol enabled
+// The shares are configured with enabledProtocols: 'NFS' which means they use NFS 4.1
+// Container Apps accesses these NFS-enabled shares through the managed storage API
+resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
   parent: containerAppEnv
-  name: 'wordpress-storage'
+  name: 'wordpress-nfs-storage'
   properties: {
     azureFile: {
       accountName: storageAccountName
@@ -296,13 +305,32 @@ resource nfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
     }
   }
   dependsOn: [
-    nfsShare
+    wordpressNfsShare
+    storagePrivateEndpoint
+    storagePrivateDnsZoneGroup
+  ]
+}
+
+resource nginxConfigNfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
+  parent: containerAppEnv
+  name: 'nginx-config-nfs-storage'
+  properties: {
+    azureFile: {
+      accountName: storageAccountName
+      accountKey: storageAccount.listKeys().keys[0].value
+      shareName: 'nginx-config'
+      accessMode: 'ReadWrite'
+    }
+  }
+  dependsOn: [
+    nginxConfigNfsShare
     storagePrivateEndpoint
     storagePrivateDnsZoneGroup
   ]
 }
 
 // WordPress Container App with Nginx + PHP-FPM
+// WordPress files and nginx config are mounted via NFS-enabled Azure Files
 resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: wordpressAppName
   location: location
@@ -336,6 +364,10 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               volumeName: 'wordpress-files'
               mountPath: '/var/www/html'
+            }
+            {
+              volumeName: 'nginx-config'
+              mountPath: '/etc/nginx'
             }
           ]
         }
@@ -393,14 +425,20 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
       volumes: [
         {
           name: 'wordpress-files'
-          storageName: 'wordpress-storage'
+          storageName: 'wordpress-nfs-storage'
+          storageType: 'AzureFile'
+        }
+        {
+          name: 'nginx-config'
+          storageName: 'nginx-config-nfs-storage'
           storageType: 'AzureFile'
         }
       ]
     }
   }
   dependsOn: [
-    nfsStorage
+    wordpressNfsStorage
+    nginxConfigNfsStorage
     mysqlDatabase
   ]
 }

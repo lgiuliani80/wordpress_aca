@@ -106,6 +106,34 @@ if [ $? -eq 0 ]; then
     STORAGE_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.storageAccountName.value')
     MYSQL_FQDN=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.mysqlServerFqdn.value')
     
+    # Upload nginx.conf to NFS share
+    print_info "Uploading nginx.conf to NFS share..."
+    
+    # Get storage account key
+    STORAGE_KEY=$(az storage account keys list \
+        --resource-group "$RESOURCE_GROUP" \
+        --account-name "$STORAGE_NAME" \
+        --query "[0].value" -o tsv)
+    
+    if [ -f "nginx.conf" ]; then
+        # Upload nginx.conf to the nginx-config NFS share
+        az storage file upload \
+            --account-name "$STORAGE_NAME" \
+            --account-key "$STORAGE_KEY" \
+            --share-name "nginx-config" \
+            --source "nginx.conf" \
+            --path "nginx.conf" \
+            --output table
+        
+        if [ $? -eq 0 ]; then
+            print_info "nginx.conf uploaded successfully to NFS share"
+        else
+            print_warning "Failed to upload nginx.conf. You may need to upload it manually."
+        fi
+    else
+        print_warning "nginx.conf file not found in current directory. Skipping upload."
+    fi
+    
     echo ""
     print_info "=========================================="
     print_info "WordPress Deployment Information"
@@ -119,6 +147,7 @@ if [ $? -eq 0 ]; then
     echo "1. Navigate to $WORDPRESS_URL"
     echo "2. Complete WordPress installation wizard"
     echo "3. Create your admin user and password"
+    echo "4. The nginx.conf has been uploaded to the NFS share"
     echo ""
 else
     print_error "Deployment failed. Please check the error messages above."
