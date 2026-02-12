@@ -46,10 +46,10 @@ az deployment group create \
 
 | Component | SKU/Size | Notes |
 |-----------|----------|-------|
-| Storage Account | Premium_LRS | FileStorage for high IOPS |
+| Storage Account | Premium_LRS | FileStorage with NFS 4.1 |
 | MySQL Server | Standard_B1ms | Burstable, 1 vCore, 2 GB RAM |
-| Container App (Nginx) | 0.25 CPU, 0.5 GB | Reverse proxy |
-| Container App (PHP) | 0.5 CPU, 1 GB | WordPress/PHP-FPM |
+| Container App (Nginx) | 0.8 CPU, 3.2 GB | Reverse proxy (20% of D4) |
+| Container App (PHP) | 3.2 CPU, 12.8 GB | WordPress/PHP-FPM (80% of D4) |
 | Workload Profile | D4 | 4 vCPU, 16 GB per node |
 
 ## Key URLs & Endpoints

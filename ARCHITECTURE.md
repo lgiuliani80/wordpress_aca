@@ -14,11 +14,13 @@ The solution uses a dedicated VNet with three subnets for network isolation:
 
 - **SKU**: Premium_LRS (locally redundant storage)
 - **Kind**: FileStorage (optimized for file shares)
-- **Protocol**: Supports both NFS 4.1 and SMB 3.0
+- **Protocol**: NFS 4.1 (enabled for both shares)
 - **Network**: Private endpoint with dedicated private DNS zone
-- **Share**: WordPress files mounted at `/var/www/html`
+- **Shares**: 
+  - `wordpress`: WordPress files mounted at `/var/www/html` (NFS 4.1)
+  - `nginx-config`: Nginx configuration mounted at `/etc/nginx` (NFS 4.1)
 
-**Note**: While Premium FileStorage supports NFS, Azure Container Apps currently uses SMB protocol for managed storage mounts. The Premium tier provides high-performance storage suitable for production WordPress workloads.
+**Note**: Premium FileStorage with NFS 4.1 protocol enabled provides true NFS mounting for WordPress files and nginx configuration. The deployment script automatically uploads nginx.conf to the NFS share after infrastructure provisioning.
 
 ### 3. MySQL Flexible Server
 
@@ -47,9 +49,12 @@ The WordPress application runs as a multi-container app with:
 
 #### Nginx Container
 - **Image**: nginx:alpine
-- **Resources**: 0.25 CPU, 0.5 GB RAM
+- **Resources**: 0.8 CPU (20% of D4), 3.2 GB RAM (20% of D4)
 - **Role**: Reverse proxy, static content serving
 - **Port**: 80 (HTTP)
+- **Mounts**: 
+  - `/var/www/html`: WordPress files (NFS 4.1)
+  - `/etc/nginx`: Nginx configuration (NFS 4.1)
 - **Features**:
   - FastCGI pass-through to PHP-FPM
   - Static content caching
@@ -58,8 +63,10 @@ The WordPress application runs as a multi-container app with:
 
 #### PHP-FPM Container
 - **Image**: wordpress:php8.2-fpm
-- **Resources**: 0.5 CPU, 1 GB RAM
+- **Resources**: 3.2 CPU (80% of D4), 12.8 GB RAM (80% of D4)
 - **Role**: PHP application server
+- **Mounts**:
+  - `/var/www/html`: WordPress files (NFS 4.1)
 - **Environment Variables**:
   - `WORDPRESS_DB_HOST`: MySQL server FQDN
   - `WORDPRESS_DB_USER`: MySQL username

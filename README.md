@@ -114,8 +114,10 @@ Since WordPress files are stored on NFS, the first container instance will initi
 ### Storage Configuration
 
 - **Storage Account**: Premium FileStorage with NFS 4.1 support
-- **NFS Share**: Mounted at `/var/www/html` in both Nginx and PHP-FPM containers
+- **WordPress NFS Share**: Mounted at `/var/www/html` in both Nginx and PHP-FPM containers (NFS 4.1 protocol)
+- **Nginx Config NFS Share**: Mounted at `/etc/nginx` in Nginx container (NFS 4.1 protocol)
 - **Private Endpoint**: Storage accessible only through private network
+- **Deploy Script**: Automatically uploads nginx.conf to NFS share after deployment
 
 ### Networking
 
@@ -127,9 +129,9 @@ Since WordPress files are stored on NFS, the first container instance will initi
 
 ### Container Apps Configuration
 
-- **Workload Profile**: Uses D4 dedicated workload profile for consistent performance
-- **Nginx Container**: Reverse proxy handling HTTP requests (0.25 CPU, 0.5 GB RAM)
-- **PHP-FPM Container**: FastCGI PHP processor for WordPress (0.5 CPU, 1 GB RAM)
+- **Workload Profile**: Uses D4 dedicated workload profile (4 vCPU, 16 GB RAM per node)
+- **Nginx Container**: Reverse proxy handling HTTP requests (0.8 CPU / 20%, 3.2 GB RAM / 20%)
+- **PHP-FPM Container**: FastCGI PHP processor for WordPress (3.2 CPU / 80%, 12.8 GB RAM / 80%)
 - **Scaling**: 1-3 replicas based on concurrent requests (50 per replica threshold)
 
 ### MySQL Configuration

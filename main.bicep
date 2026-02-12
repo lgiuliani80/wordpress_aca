@@ -357,8 +357,8 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'nginx'
           image: nginxImage
           resources: {
-            cpu: json('0.25')
-            memory: '0.5Gi'
+            cpu: json('0.8')
+            memory: '3.2Gi'
           }
           volumeMounts: [
             {
@@ -375,8 +375,8 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'php-fpm'
           image: wordpressImage
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json('3.2')
+            memory: '12.8Gi'
           }
           env: [
             {
