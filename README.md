@@ -46,7 +46,7 @@ This project provides Infrastructure as Code (IaC) using Azure Bicep to deploy a
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/lgiuliani80/wordpress_aca.git
+git clone <your-repository-url>
 cd wordpress_aca
 ```
 
@@ -191,12 +191,28 @@ sku: {
 
 ### Modify Nginx Configuration
 
-The `nginx.conf` file contains the Nginx configuration. To use a custom configuration:
+The included `nginx.conf` file contains an optimized Nginx configuration for WordPress. To use a custom configuration:
 
-1. Edit `nginx.conf`
-2. Redeploy the template or manually update the Container App
+**Option 1: Build a custom Nginx image** (Recommended)
+```dockerfile
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/nginx.conf
+```
 
-For runtime configuration updates, consider using Azure App Configuration or mounting the config from a ConfigMap-style solution.
+Then update the `nginxImage` parameter to use your custom image.
+
+**Option 2: Use init container to copy configuration**
+Add an init container in the Container App definition that copies the configuration from a mounted volume or downloads it at startup.
+
+**Option 3: Use environment-specific configuration**
+Store configurations in Azure App Configuration and load them at container startup.
+
+The default `nginx:alpine` image includes a basic configuration that works with PHP-FPM, but the provided `nginx.conf` includes optimizations for WordPress such as:
+- FastCGI configuration for PHP
+- Static content caching
+- Gzip compression
+- WordPress-specific rules
+- Security headers
 
 ## Monitoring
 

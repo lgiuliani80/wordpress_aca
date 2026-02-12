@@ -55,9 +55,29 @@ MYSQL_USER=${MYSQL_USER:-mysqladmin}
 read -s -p "Enter MySQL Admin Password (min 8 chars, must have upper, lower, number, special): " MYSQL_PASSWORD
 echo
 
-# Validate MySQL password
+# Validate MySQL password complexity
 if [ ${#MYSQL_PASSWORD} -lt 8 ]; then
     print_error "MySQL password must be at least 8 characters long"
+    exit 1
+fi
+
+if ! [[ "$MYSQL_PASSWORD" =~ [A-Z] ]]; then
+    print_error "MySQL password must contain at least one uppercase letter"
+    exit 1
+fi
+
+if ! [[ "$MYSQL_PASSWORD" =~ [a-z] ]]; then
+    print_error "MySQL password must contain at least one lowercase letter"
+    exit 1
+fi
+
+if ! [[ "$MYSQL_PASSWORD" =~ [0-9] ]]; then
+    print_error "MySQL password must contain at least one number"
+    exit 1
+fi
+
+if ! [[ "$MYSQL_PASSWORD" =~ [^a-zA-Z0-9] ]]; then
+    print_error "MySQL password must contain at least one special character"
     exit 1
 fi
 

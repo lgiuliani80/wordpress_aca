@@ -12,7 +12,7 @@
       "value": "mysqladmin"
     },
     "mysqlAdminPassword": {
-      "value": "CHANGE_ME_MYSQL_PASSWORD"
+      "value": "CHANGE_ME_MIN_8_CHARS_UPPER_LOWER_NUM_SPECIAL"
     },
     "wordpressDbName": {
       "value": "wordpress"

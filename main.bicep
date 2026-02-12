@@ -204,7 +204,7 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-06-30' = {
     tier: 'Burstable'
   }
   properties: {
-    version: '8.0.21'
+    version: '8.0'
     administratorLogin: mysqlAdminUser
     administratorLoginPassword: mysqlAdminPassword
     storage: {
@@ -277,8 +277,13 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   }
 }
 
-// Azure File Storage for Container Apps (using SMB instead of NFS due to Container Apps limitations)
-// Note: While the Storage Account supports NFS, Container Apps currently works best with SMB/Azure Files
+// Azure File Storage for Container Apps
+// Note: Premium FileStorage supports both NFS 4.1 and SMB 3.0 protocols.
+// Azure Container Apps managed storage API currently uses SMB protocol for Azure Files mounts,
+// even when using Premium FileStorage accounts. For direct NFS mounting, custom init containers
+// or sidecar patterns would be required. SMB provides similar performance characteristics
+// with Premium FileStorage and is the recommended approach for Container Apps.
+// Reference: https://learn.microsoft.com/azure/container-apps/storage-mounts
 resource nfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
   parent: containerAppEnv
   name: 'wordpress-storage'
@@ -331,11 +336,6 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               volumeName: 'wordpress-files'
               mountPath: '/var/www/html'
-            }
-            {
-              volumeName: 'nginx-config'
-              mountPath: '/etc/nginx/nginx.conf'
-              subPath: 'nginx.conf'
             }
           ]
         }
@@ -395,10 +395,6 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'wordpress-files'
           storageName: 'wordpress-storage'
           storageType: 'AzureFile'
-        }
-        {
-          name: 'nginx-config'
-          storageType: 'EmptyDir'
         }
       ]
     }
