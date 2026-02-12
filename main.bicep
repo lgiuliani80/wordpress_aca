@@ -290,17 +290,16 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
 }
 
 // NFS-enabled managed storage for Container Apps Environment
-// These storages use Premium FileStorage with NFS 4.1 protocol enabled
-// The shares are configured with enabledProtocols: 'NFS' which means they use NFS 4.1
-// Container Apps accesses these NFS-enabled shares through the managed storage API
-resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
+// These storages use Premium FileStorage with NFS 4.1 protocol
+// Using nfsAzureFile property for true NFS mounting
+// Note: Bicep type definitions may show a warning, but this is the correct property per Azure docs
+resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
   parent: containerAppEnv
   name: 'wordpress-nfs-storage'
   properties: {
-    azureFile: {
-      accountName: storageAccountName
-      accountKey: storageAccount.listKeys().keys[0].value
-      shareName: 'wordpress'
+    nfsAzureFile: {
+      server: '${storageAccountName}.file.${environment().suffixes.storage}'
+      shareName: '${storageAccountName}/wordpress'
       accessMode: 'ReadWrite'
     }
   }
@@ -311,14 +310,13 @@ resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05
   ]
 }
 
-resource nginxConfigNfsStorage 'Microsoft.App/managedEnvironments/storages@2023-05-01' = {
+resource nginxConfigNfsStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
   parent: containerAppEnv
   name: 'nginx-config-nfs-storage'
   properties: {
-    azureFile: {
-      accountName: storageAccountName
-      accountKey: storageAccount.listKeys().keys[0].value
-      shareName: 'nginx-config'
+    nfsAzureFile: {
+      server: '${storageAccountName}.file.${environment().suffixes.storage}'
+      shareName: '${storageAccountName}/nginx-config'
       accessMode: 'ReadWrite'
     }
   }
