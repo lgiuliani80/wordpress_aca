@@ -101,7 +101,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
         }
       ]
     }
-    supportsHttpsTrafficOnly: false // NFS requires false
+    supportsHttpsTrafficOnly: false // NFS v4.1 protocol doesn't use HTTPS; set to false for NFS support
     minimumTlsVersion: 'TLS1_2'
     largeFileSharesState: 'Enabled'
   }

@@ -134,7 +134,7 @@ Since WordPress files are stored on NFS, the first container instance will initi
 
 ### MySQL Configuration
 
-- **Version**: MySQL 8.0.21
+- **Version**: MySQL 8.0 (latest in 8.0 series)
 - **SKU**: Burstable B1ms (cost-effective for small/medium workloads)
 - **Storage**: 20 GB with auto-grow enabled
 - **Backup**: 7-day retention, geo-redundant disabled

@@ -22,7 +22,7 @@ The solution uses a dedicated VNet with three subnets for network isolation:
 
 ### 3. MySQL Flexible Server
 
-- **Version**: MySQL 8.0.21
+- **Version**: MySQL 8.0 (latest in 8.0 series)
 - **SKU**: Standard_B1ms (Burstable tier)
   - 1 vCore
   - 2 GB RAM
