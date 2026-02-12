@@ -1,0 +1,33 @@
+# Azure
+*.azureauth
+*.publishsettings
+*.azurePubxml
+
+# Secrets and sensitive data
+*.secret
+*.key
+*.pem
+secrets.json
+parameters.prod.json
+
+# Bicep generated files
+*.json.bak
+main.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
