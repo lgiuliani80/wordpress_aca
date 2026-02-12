@@ -60,7 +60,28 @@ Edit `parameters.json` and update the following values:
 
 **Important**: Never commit real passwords to version control. Use Azure Key Vault references or pass them as secure parameters during deployment.
 
-### 3. Deploy using Azure CLI
+### 3. Deploy using automated scripts
+
+**Option A: Using Bash (Linux/macOS/WSL)**
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+**Option B: Using PowerShell (Windows/PowerShell Core)**
+```powershell
+.\deploy.ps1
+```
+
+The deployment scripts will:
+- Verify Azure CLI installation and authentication
+- Prompt for deployment parameters
+- Validate MySQL password complexity
+- Create the resource group
+- Deploy the Bicep template
+- Upload nginx.conf to the NFS share
+
+### 4. Deploy using Azure CLI manually
 
 ```bash
 # Login to Azure
@@ -80,7 +101,7 @@ az deployment group create \
   --parameters mysqlAdminPassword='YOUR_MYSQL_PASSWORD'
 ```
 
-### 4. Alternative: Deploy with parameter file only
+### 5. Alternative: Deploy with parameter file only
 
 For CI/CD pipelines, you can also deploy with all parameters in the file:
 

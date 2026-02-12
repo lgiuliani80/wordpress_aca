@@ -2,10 +2,15 @@
 
 ## Quick Start Commands
 
-### Deploy with Script
+### Deploy with Script (Bash)
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
+```
+
+### Deploy with Script (PowerShell)
+```powershell
+.\deploy.ps1
 ```
 
 ### Deploy with Azure CLI
