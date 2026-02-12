@@ -130,9 +130,11 @@ Since WordPress files are stored on NFS, the first container instance will initi
 ### Container Apps Configuration
 
 - **Workload Profile**: Uses D4 dedicated workload profile (4 vCPU, 16 GB RAM per node)
-- **Nginx Container**: Reverse proxy handling HTTP requests (0.8 CPU / 20%, 3.2 GB RAM / 20%)
-- **PHP-FPM Container**: FastCGI PHP processor for WordPress (3.2 CPU / 80%, 12.8 GB RAM / 80%)
+- **Nginx Container**: Reverse proxy handling HTTP requests (1.0 CPU / 25%, 2 GB RAM / 12.5%)
+- **PHP-FPM Container**: FastCGI PHP processor for WordPress (3.0 CPU / 75%, 6 GB RAM / 37.5%)
+- **Total per replica**: 4 vCPU, 8 GB RAM (50% of D4 node capacity, allows 2 replicas per node)
 - **Scaling**: 1-3 replicas based on concurrent requests (50 per replica threshold)
+- **Note**: Resource combinations follow Azure Container Apps constraints (memory = 2x CPU)
 
 ### MySQL Configuration
 

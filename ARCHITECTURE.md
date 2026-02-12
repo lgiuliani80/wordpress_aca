@@ -49,7 +49,7 @@ The WordPress application runs as a multi-container app with:
 
 #### Nginx Container
 - **Image**: nginx:alpine
-- **Resources**: 0.8 CPU (20% of D4), 3.2 GB RAM (20% of D4)
+- **Resources**: 1.0 CPU (25% of D4), 2 GB RAM (12.5% of D4)
 - **Role**: Reverse proxy, static content serving
 - **Port**: 80 (HTTP)
 - **Mounts**: 
@@ -63,7 +63,7 @@ The WordPress application runs as a multi-container app with:
 
 #### PHP-FPM Container
 - **Image**: wordpress:php8.2-fpm
-- **Resources**: 3.2 CPU (80% of D4), 12.8 GB RAM (80% of D4)
+- **Resources**: 3.0 CPU (75% of D4), 6 GB RAM (37.5% of D4)
 - **Role**: PHP application server
 - **Mounts**:
   - `/var/www/html`: WordPress files (NFS 4.1)
@@ -73,6 +73,11 @@ The WordPress application runs as a multi-container app with:
   - `WORDPRESS_DB_PASSWORD`: From secrets
   - `WORDPRESS_DB_NAME`: Database name
   - `WORDPRESS_CONFIG_EXTRA`: Additional WP config
+
+#### Resource Allocation Notes
+- **Total per replica**: 4 vCPU, 8 GB RAM (50% of D4 node capacity)
+- **Valid combinations**: Azure Container Apps requires memory = 2x CPU (0.25/0.5, 0.5/1, 1/2, 2/4, 3/6, 4/8)
+- **Capacity**: D4 node can run 2 replicas (8 vCPU / 16 GB total per node)
 
 #### Scaling Configuration
 - **Min Replicas**: 1
