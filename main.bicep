@@ -24,13 +24,20 @@ param wordpressImage string = 'wordpress:php8.2-fpm'
 @description('Container image for Nginx')
 param nginxImage string = 'nginx:alpine'
 
+@description('Name of the Website')
+param sitename string = 'wpsite'
+
+@description('Allowed IP address to whitelist for Storage Account access')
+param allowedIpAddress string = ''
+
+
 // Variables
-var uniqueSuffix = uniqueString(resourceGroup().id)
+var uniqueSuffix = take(uniqueString(resourceGroup().id),4)
 var storageAccountName = 'st${environmentName}${uniqueSuffix}'
 var mysqlServerName = 'mysql-${environmentName}-${uniqueSuffix}'
 var vnetName = 'vnet-${environmentName}'
 var containerAppEnvName = 'cae-${environmentName}'
-var wordpressAppName = 'ca-wordpress-${environmentName}'
+var wordpressAppName = 'ca-${sitename}-${environmentName}'
 
 // Virtual Network for private networking
 resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
@@ -83,52 +90,102 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
 }
 
 // Storage Account with Premium tier for NFS support
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' = {
   name: storageAccountName
   location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
   sku: {
-    name: 'Premium_LRS'
+    name: 'PremiumV2_LRS'
+    tier: 'Premium'
   }
   kind: 'FileStorage'
   properties: {
+    dnsEndpointType: 'Standard'
+    defaultToOAuthAuthentication: false
+    publicNetworkAccess: 'Enabled'
+    allowCrossTenantReplication: false
+    azureFilesIdentityBasedAuthentication: {
+      smbOAuthSettings: {
+        isSmbOAuthEnabled: false
+      }
+      directoryServiceOptions: 'None'
+    }
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: true
+    largeFileSharesState: 'Enabled'
     networkAcls: {
-      bypass: 'None'
-      defaultAction: 'Deny'
-      virtualNetworkRules: [
+      bypass: 'AzureServices'
+      virtualNetworkRules: []
+      ipRules: !empty(allowedIpAddress) ? [
         {
-          id: vnet.properties.subnets[0].id // Allow Container Apps subnet
+          value: allowedIpAddress
           action: 'Allow'
         }
-      ]
+      ] : []
+      defaultAction: 'Deny'
     }
-    supportsHttpsTrafficOnly: false // NFS v4.1 protocol doesn't use HTTPS; set to false for NFS support
-    minimumTlsVersion: 'TLS1_2'
-    largeFileSharesState: 'Enabled'
+    supportsHttpsTrafficOnly: false
+    encryption: {
+      requireInfrastructureEncryption: false
+      services: {
+        file: {
+          keyType: 'Account'
+          enabled: true
+        }
+        blob: {
+          keyType: 'Account'
+          enabled: true
+        }
+      }
+      keySource: 'Microsoft.Storage'
+    }
+  }
+}
+
+resource files_default 'Microsoft.Storage/storageAccounts/fileServices@2025-01-01' = {
+  parent: storageAccount
+  name: 'default'
+  sku: {
+    name: 'PremiumV2_LRS'
+    tier: 'Premium'
+  }
+  properties: {
+    protocolSettings: {
+      smb: {
+        multichannel: {
+          enabled: true
+        }
+      }
+    }
+    cors: {
+      corsRules: []
+    }
+    shareDeleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
   }
 }
 
 // NFS File Share for WordPress files
 resource wordpressNfsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
-  name: '${storageAccountName}/default/wordpress'
+  parent: files_default
+  name: 'wordpress'
   properties: {
     enabledProtocols: 'NFS'
-    accessTier: 'Premium'
   }
-  dependsOn: [
-    storageAccount
-  ]
 }
 
 // NFS File Share for Nginx configuration
 resource nginxConfigNfsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
-  name: '${storageAccountName}/default/nginx-config'
+  parent: files_default
+  name: 'nginx-config'
   properties: {
     enabledProtocols: 'NFS'
-    accessTier: 'Premium'
   }
-  dependsOn: [
-    storageAccount
-  ]
 }
 
 // Private DNS Zone for Storage Account
@@ -208,37 +265,47 @@ resource mysqlPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetwo
 }
 
 // MySQL Flexible Server
-resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-06-30' = {
+resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2021-05-01' = {
   name: mysqlServerName
   location: location
   sku: {
     name: 'Standard_B1ms'
     tier: 'Burstable'
+    capacity: 1
   }
   properties: {
-    version: '8.0'
+    createMode: 'Default'
+    version: '8.0.21'
     administratorLogin: mysqlAdminUser
     administratorLoginPassword: mysqlAdminPassword
-    storage: {
-      storageSizeGB: 20
-      autoGrow: 'Enabled'
+    Storage: {
+      StorageSizeGB: 20
+      Autogrow: 'Enabled'
+      AutoIoScaling: 'Enabled'
+      LogOnDisk: 'Disabled'
     }
-    backup: {
-      backupRetentionDays: 7
-      geoRedundantBackup: 'Disabled'
-    }
-    network: {
+    Network: {
       delegatedSubnetResourceId: vnet.properties.subnets[2].id // mysql-subnet
       privateDnsZoneResourceId: mysqlPrivateDnsZone.id
     }
+    Backup: {
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled'
+    }
+    availabilityZone: ''
+    highAvailability: {
+      mode: 'Disabled'
+    }
+    lowerCaseTableNames: 1
   }
   dependsOn: [
     mysqlPrivateDnsZoneLink
   ]
 }
 
+
 // MySQL Database
-resource mysqlDatabase 'Microsoft.DBforMySQL/flexibleServers/databases@2023-06-30' = {
+resource mysqlDatabase 'Microsoft.DBforMySQL/flexibleServers/databases@2021-05-01' = {
   parent: mysqlServer
   name: wordpressDbName
   properties: {
@@ -293,35 +360,35 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
 // These storages use Premium FileStorage with NFS 4.1 protocol
 // Using nfsAzureFile property for true NFS mounting
 // Note: Bicep type definitions may show a warning, but this is the correct property per Azure docs
-resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
-  parent: containerAppEnv
-  name: 'wordpress-nfs-storage'
-  properties: {
-    nfsAzureFile: {
-      server: '${storageAccountName}.file.${environment().suffixes.storage}'
-      shareName: '${storageAccountName}/wordpress'
-      accessMode: 'ReadWrite'
-    }
-  }
-  dependsOn: [
-    wordpressNfsShare
-    storagePrivateEndpoint
-    storagePrivateDnsZoneGroup
-  ]
-}
-
-resource nginxConfigNfsStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+resource nginxConfigNfsStorage 'Microsoft.App/managedEnvironments/storages@2025-02-02-preview' = {
   parent: containerAppEnv
   name: 'nginx-config-nfs-storage'
   properties: {
     nfsAzureFile: {
       server: '${storageAccountName}.file.${environment().suffixes.storage}'
-      shareName: '${storageAccountName}/nginx-config'
-      accessMode: 'ReadWrite'
+      shareName: '/${storageAccountName}/nginx-config'
+      accessMode: 'ReadOnly'
     }
   }
   dependsOn: [
     nginxConfigNfsShare
+    storagePrivateEndpoint
+    storagePrivateDnsZoneGroup
+  ]
+}
+
+resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2025-02-02-preview' = {
+  parent: containerAppEnv
+  name: 'wordpress-nfs-storage'
+  properties: {
+    nfsAzureFile: {
+      server: '${storageAccountName}.file.${environment().suffixes.storage}'
+      shareName: '/${storageAccountName}/wordpress'
+      accessMode: 'ReadWrite'
+    }
+  }
+  dependsOn: [
+    wordpressNfsShare
     storagePrivateEndpoint
     storagePrivateDnsZoneGroup
   ]
@@ -424,12 +491,12 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'wordpress-files'
           storageName: 'wordpress-nfs-storage'
-          storageType: 'AzureFile'
+          storageType: 'NfsAzureFile'
         }
         {
           name: 'nginx-config'
           storageName: 'nginx-config-nfs-storage'
-          storageType: 'AzureFile'
+          storageType: 'NfsAzureFile'
         }
       ]
     }
