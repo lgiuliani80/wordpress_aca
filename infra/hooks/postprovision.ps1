@@ -10,12 +10,12 @@ function Write-Info {
     Write-Host "[INFO] $Message" -ForegroundColor Green
 }
 
-function Write-Warning-Custom {
+function Write-CustomWarning {
     param([string]$Message)
     Write-Host "[WARNING] $Message" -ForegroundColor Yellow
 }
 
-function Write-Error-Custom {
+function Write-CustomError {
     param([string]$Message)
     Write-Host "[ERROR] $Message" -ForegroundColor Red
 }
@@ -27,8 +27,8 @@ try {
     $null = Get-Command az -ErrorAction Stop
     Write-Info "Azure CLI is installed"
 } catch {
-    Write-Error-Custom "Azure CLI (az) is not installed"
-    Write-Error-Custom "Please install Azure CLI: https://docs.microsoft.com/cli/azure/install-azure-cli"
+    Write-CustomError "Azure CLI (az) is not installed"
+    Write-CustomError "Please install Azure CLI: https://docs.microsoft.com/cli/azure/install-azure-cli"
     exit 1
 }
 
@@ -40,8 +40,8 @@ try {
     }
     Write-Info "User is logged in to Azure"
 } catch {
-    Write-Error-Custom "Not logged in to Azure"
-    Write-Error-Custom "Please run: az login"
+    Write-CustomError "Not logged in to Azure"
+    Write-CustomError "Please run: az login"
     exit 1
 }
 
@@ -49,11 +49,11 @@ try {
 try {
     $currentSubscription = az account show --query id -o tsv 2>$null
     if ([string]::IsNullOrWhiteSpace($currentSubscription)) {
-        throw "Could not retrieve subscription"
+        throw "Could not retrieve current Azure subscription"
     }
     Write-Info "Current Azure subscription: $currentSubscription"
 } catch {
-    Write-Error-Custom "Could not retrieve current Azure subscription"
+    Write-CustomError "Could not retrieve current Azure subscription"
     exit 1
 }
 
@@ -72,18 +72,18 @@ try {
     # If azd has a specific subscription set, verify it matches
     if ($azdSubscription) {
         if ($currentSubscription -ne $azdSubscription) {
-            Write-Error-Custom "Azure subscription mismatch!"
-            Write-Error-Custom "Current subscription: $currentSubscription"
-            Write-Error-Custom "azd target subscription: $azdSubscription"
-            Write-Error-Custom "Please switch subscription with: az account set --subscription $azdSubscription"
+            Write-CustomError "Azure subscription mismatch!"
+            Write-CustomError "Current subscription: $currentSubscription"
+            Write-CustomError "azd target subscription: $azdSubscription"
+            Write-CustomError "Please switch subscription with: az account set --subscription $azdSubscription"
             exit 1
         }
         Write-Info "Azure subscription matches azd target subscription"
     } else {
-        Write-Warning-Custom "No AZURE_SUBSCRIPTION_ID set in azd environment, using current subscription"
+        Write-CustomWarning "No AZURE_SUBSCRIPTION_ID set in azd environment, using current subscription"
     }
 } catch {
-    Write-Warning-Custom "Could not retrieve azd subscription information"
+    Write-CustomWarning "Could not retrieve azd subscription information"
 }
 
 # Get the outputs from the deployment
@@ -102,16 +102,16 @@ try {
     }
     
     if ([string]::IsNullOrWhiteSpace($storageAccountName) -or [string]::IsNullOrWhiteSpace($resourceGroupName)) {
-        Write-Error-Custom "Could not retrieve storage account name or resource group name from azd environment"
-        Write-Error-Custom "STORAGE_ACCOUNT_NAME: $storageAccountName"
-        Write-Error-Custom "RESOURCE_GROUP_NAME: $resourceGroupName"
+        Write-CustomError "Could not retrieve storage account name or resource group name from azd environment"
+        Write-CustomError "STORAGE_ACCOUNT_NAME: $storageAccountName"
+        Write-CustomError "RESOURCE_GROUP_NAME: $resourceGroupName"
         exit 1
     }
     
     Write-Info "Storage Account: $storageAccountName"
     Write-Info "Resource Group: $resourceGroupName"
 } catch {
-    Write-Error-Custom "Failed to retrieve azd environment values"
+    Write-CustomError "Failed to retrieve azd environment values"
     exit 1
 }
 
@@ -127,7 +127,7 @@ try {
         throw "Could not retrieve storage account key"
     }
 } catch {
-    Write-Error-Custom "Could not retrieve storage account key"
+    Write-CustomError "Could not retrieve storage account key"
     exit 1
 }
 
@@ -152,11 +152,11 @@ if (Test-Path $nginxConfPath) {
             throw "Upload failed"
         }
     } catch {
-        Write-Error-Custom "Failed to upload nginx.conf"
+        Write-CustomError "Failed to upload nginx.conf"
         exit 1
     }
 } else {
-    Write-Error-Custom "nginx.conf file not found at $nginxConfPath"
+    Write-CustomError "nginx.conf file not found at $nginxConfPath"
     exit 1
 }
 
