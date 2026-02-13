@@ -1,5 +1,7 @@
 # Architecture Overview
 
+> **Deployment**: This solution can be deployed using [Azure Developer CLI (azd)](./AZD_GUIDE.md) for a streamlined experience, or using the [legacy deployment scripts](./README.md#legacy-deployment).
+
 ## Component Details
 
 ### 1. Virtual Network (10.0.0.0/16)
