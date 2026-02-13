@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "wdev"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "mysqlAdminUser": {
+      "value": "mysqladmin"
+    },
+    "mysqlAdminPassword": {
+      "value": "CHANGE_ME_MIN_8_CHARS_UPPER_LOWER_NUM_SPECIAL"
+    },
+    "wordpressDbName": {
+      "value": "wordpress"
+    },
+    "wordpressImage": {
+      "value": "wordpress:php8.2-fpm"
+    },
+    "nginxImage": {
+      "value": "nginx:alpine"
+    }
+  }
+}
