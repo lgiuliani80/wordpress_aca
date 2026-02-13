@@ -25,7 +25,8 @@ wordpress_aca/
 │   ├── main.parameters.json        # Parameters with azd variable substitution
 │   ├── nginx.conf                  # Nginx configuration
 │   └── hooks/
-│       └── postprovision.sh        # Post-provision hook (uploads nginx.conf)
+│       ├── postprovision.sh        # Post-provision hook (Bash/Linux/macOS/WSL)
+│       └── postprovision.ps1       # Post-provision hook (PowerShell/Windows)
 ├── deploy.sh                       # Legacy deployment script
 ├── deploy.ps1                      # Legacy deployment script (PowerShell)
 └── README.md                       # Main documentation
@@ -169,8 +170,15 @@ azd provision
 ### Re-run Hooks
 
 If you need to re-upload nginx.conf or run post-provision tasks:
+
+**Bash (Linux/macOS/WSL):**
 ```bash
 ./infra/hooks/postprovision.sh
+```
+
+**PowerShell (Windows):**
+```powershell
+./infra/hooks/postprovision.ps1
 ```
 
 ### Update Infrastructure
@@ -236,21 +244,36 @@ The `infra/main.parameters.json` file uses azd variable substitution syntax:
 
 ### Post-Provision Hook
 
-The `infra/hooks/postprovision.sh` script runs after infrastructure provisioning:
+The post-provision hook runs after infrastructure provisioning and is available in both Bash and PowerShell versions:
+
+- **Linux/macOS/WSL**: `infra/hooks/postprovision.sh` (Bash)
+- **Windows**: `infra/hooks/postprovision.ps1` (PowerShell)
 
 **What it does:**
-1. Retrieves storage account name from azd environment
-2. Gets storage account key using Azure CLI
-3. Uploads `nginx.conf` to the `nginx-config` NFS share
+1. Validates Azure CLI is installed
+2. Verifies user is logged in to Azure
+3. Checks current subscription matches azd target subscription (if set)
+4. Retrieves storage account name and resource group from azd environment
+5. Gets storage account key using Azure CLI
+6. Uploads `nginx.conf` to the `nginx-config` NFS share
 
 **Configuration in azure.yaml:**
 ```yaml
 hooks:
   postprovision:
-    shell: sh
-    run: ./infra/hooks/postprovision.sh
-    continueOnError: false
+    # For Unix-like systems (Linux, macOS, WSL)
+    posix:
+      shell: sh
+      run: ./infra/hooks/postprovision.sh
+      continueOnError: false
+    # For Windows systems (PowerShell)
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1
+      continueOnError: false
 ```
+
+The appropriate script is automatically selected based on your operating system.
 
 ## CI/CD Integration
 
@@ -378,13 +401,22 @@ azd init  # Create new environment with shorter name
 ### Post-provision hook fails
 
 Run it manually to see detailed errors:
+
+**Bash (Linux/macOS/WSL):**
 ```bash
 ./infra/hooks/postprovision.sh
 ```
 
+**PowerShell (Windows):**
+```powershell
+./infra/hooks/postprovision.ps1
+```
+
 Common issues:
+- Azure CLI not installed or not in PATH
+- Not logged in to Azure (run `az login`)
+- Subscription mismatch (ensure you're using the correct subscription)
 - Storage account not yet ready (wait a minute and retry)
-- Missing Azure CLI authentication
 - NFS share not created (check Bicep deployment)
 
 ### View deployment logs

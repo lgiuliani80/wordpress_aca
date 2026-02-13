@@ -59,7 +59,8 @@ az deployment group create \
 ### Infrastructure
 - `infra/main.bicep` - Main Bicep template with azd outputs
 - `infra/nginx.conf` - Nginx configuration
-- `infra/hooks/postprovision.sh` - Post-deployment automation
+- `infra/hooks/postprovision.sh` - Post-deployment automation (Bash)
+- `infra/hooks/postprovision.ps1` - Post-deployment automation (PowerShell)
 
 ### Documentation
 - `AZD_GUIDE.md` - Comprehensive azd documentation
@@ -92,12 +93,17 @@ azd up
 ```
 
 ### 4. Post-Deployment Automation
-Automatic nginx.conf upload via hook:
+Automatic nginx.conf upload via platform-specific hook:
 ```yaml
 hooks:
   postprovision:
-    run: ./infra/hooks/postprovision.sh
+    posix:  # For Linux/macOS/WSL
+      run: ./infra/hooks/postprovision.sh
+    windows:  # For Windows PowerShell
+      run: ./infra/hooks/postprovision.ps1
 ```
+
+Both hooks validate Azure CLI, check login status, verify subscription, and upload nginx.conf.
 
 ## Benefits
 

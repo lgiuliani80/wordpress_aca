@@ -50,11 +50,17 @@ Contains all infrastructure as code files for azd deployment.
 
 ### Hooks Directory (`infra/hooks/`)
 
-Contains deployment lifecycle hooks.
+Contains deployment lifecycle hooks. Platform-specific versions are automatically selected by azd.
 
-| File | Purpose |
-|------|---------|
-| `postprovision.sh` | Post-provision hook that uploads nginx.conf to NFS share |
+| File | Purpose | Platform |
+|------|---------|----------|
+| `postprovision.sh` | Post-provision hook that uploads nginx.conf to NFS share | Linux/macOS/WSL |
+| `postprovision.ps1` | Post-provision hook that uploads nginx.conf to NFS share | Windows PowerShell |
+
+Both scripts perform the same operations:
+- Validate Azure CLI is installed and user is logged in
+- Verify subscription matches azd target (if set)
+- Upload nginx.conf to the NFS share
 
 ## Hidden Directories
 
