@@ -43,14 +43,76 @@ print_info "Azure CLI authentication verified"
 read -p "Enter Resource Group Name (default: rg-wordpress-aca): " RESOURCE_GROUP
 RESOURCE_GROUP=${RESOURCE_GROUP:-rg-wordpress-aca}
 
+# Validate resource group name (1-90 chars, alphanumeric, -, _, ., ())
+if [ ${#RESOURCE_GROUP} -lt 1 ] || [ ${#RESOURCE_GROUP} -gt 90 ]; then
+    print_error "Resource group name must be between 1 and 90 characters"
+    exit 1
+fi
+if ! [[ "$RESOURCE_GROUP" =~ ^[a-zA-Z0-9._()-]+$ ]]; then
+    print_error "Resource group name can only contain alphanumeric characters, periods, underscores, hyphens, and parentheses"
+    exit 1
+fi
+
 read -p "Enter Location (default: westeurope): " LOCATION
 LOCATION=${LOCATION:-westeurope}
 
-read -p "Enter Environment Name (default: wordpress-prod): " ENV_NAME
-ENV_NAME=${ENV_NAME:-wordpress-prod}
+read -p "Enter Environment Name (default: wprod): " ENV_NAME
+ENV_NAME=${ENV_NAME:-wprod}
+
+# Validate environment name for storage account compatibility
+# Storage account name will be: st${environmentName}${uniqueSuffix}
+# uniqueString generates ~13 chars, so we need environmentName to be max 9 chars (st=2 + env=9 + unique=13 = 24)
+if [ ${#ENV_NAME} -lt 1 ] || [ ${#ENV_NAME} -gt 9 ]; then
+    print_error "Environment name must be between 1 and 9 characters to ensure storage account name stays within 24 character limit"
+    exit 1
+fi
+if ! [[ "$ENV_NAME" =~ ^[a-z0-9]+$ ]]; then
+    print_error "Environment name can only contain lowercase letters and numbers (no hyphens, underscores, or special characters)"
+    print_error "This is required for storage account naming which only allows lowercase letters and numbers"
+    exit 1
+fi
+
+# Validate resulting resource names won't exceed limits
+# MySQL server name: mysql-${environmentName}-${uniqueSuffix} (max 63 chars)
+MYSQL_NAME_PREFIX="mysql-${ENV_NAME}-"
+if [ ${#MYSQL_NAME_PREFIX} -gt 50 ]; then
+    print_error "Environment name too long: MySQL server name would exceed 63 character limit"
+    exit 1
+fi
+
+# VNet name: vnet-${environmentName} (max 64 chars)
+VNET_NAME="vnet-${ENV_NAME}"
+if [ ${#VNET_NAME} -gt 64 ]; then
+    print_error "Environment name too long: VNet name would exceed 64 character limit"
+    exit 1
+fi
+
+# Container App Environment: cae-${environmentName} (max 32 chars)
+CAE_NAME="cae-${ENV_NAME}"
+if [ ${#CAE_NAME} -gt 32 ]; then
+    print_error "Environment name too long: Container App Environment name would exceed 32 character limit"
+    exit 1
+fi
+
+# Container App: ca-wordpress-${environmentName} (max 32 chars)
+CA_NAME="ca-wordpress-${ENV_NAME}"
+if [ ${#CA_NAME} -gt 32 ]; then
+    print_error "Environment name too long: Container App name would exceed 32 character limit"
+    exit 1
+fi
 
 read -p "Enter MySQL Admin Username (default: mysqladmin): " MYSQL_USER
 MYSQL_USER=${MYSQL_USER:-mysqladmin}
+
+# Validate MySQL username (alphanumeric only, no special characters)
+if ! [[ "$MYSQL_USER" =~ ^[a-zA-Z0-9]+$ ]]; then
+    print_error "MySQL username can only contain alphanumeric characters (no special characters or spaces)"
+    exit 1
+fi
+if [ ${#MYSQL_USER} -lt 1 ] || [ ${#MYSQL_USER} -gt 16 ]; then
+    print_error "MySQL username must be between 1 and 16 characters"
+    exit 1
+fi
 
 read -s -p "Enter MySQL Admin Password (min 8 chars, must have upper, lower, number, special): " MYSQL_PASSWORD
 echo

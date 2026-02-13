@@ -54,9 +54,14 @@ cd wordpress_aca
 
 Edit `parameters.json` and update the following values:
 
+- `environmentName`: Unique name for your environment (1-9 characters, lowercase letters and numbers only, no hyphens or special characters)
 - `mysqlAdminPassword`: Strong password for MySQL admin (min 8 characters, must include uppercase, lowercase, numbers, and special characters)
 - `location`: Azure region (e.g., `westeurope`, `eastus`)
-- `environmentName`: Unique name for your environment
+
+**Important Naming Constraints**:
+- **Environment Name**: Must be 1-9 characters, lowercase letters and numbers only (no hyphens, underscores, or special characters). This is used to generate resource names including the storage account which has strict naming rules.
+- Examples of valid names: `wprod`, `wdev`, `wstaging`, `wp1`, `prod01`
+- Examples of invalid names: `wp-prod` (hyphen), `WordPress` (uppercase), `wordpress-prod` (too long + hyphen)
 
 **Important**: Never commit real passwords to version control. Use Azure Key Vault references or pass them as secure parameters during deployment.
 
@@ -75,8 +80,13 @@ chmod +x deploy.sh
 
 The deployment scripts will:
 - Verify Azure CLI installation and authentication
-- Prompt for deployment parameters
-- Validate MySQL password complexity
+- Prompt for deployment parameters with validation
+- Validate parameter constraints:
+  - Resource group name (1-90 chars, alphanumeric, -, _, ., ())
+  - Environment name (1-9 chars, lowercase/numbers only)
+  - MySQL username (1-16 chars, alphanumeric only)
+  - MySQL password complexity (min 8 chars, upper/lower/number/special)
+  - Ensure all generated resource names stay within Azure limits
 - Create the resource group
 - Deploy the Bicep template
 - Upload nginx.conf to the NFS share
