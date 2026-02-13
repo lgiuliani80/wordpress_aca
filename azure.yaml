@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: wordpress-aca
+metadata:
+  template: wordpress-aca@0.0.1-beta
+
+# Hooks configuration
+hooks:
+  postprovision:
+    shell: sh
+    run: ./infra/hooks/postprovision.sh
+    continueOnError: false
+    interactive: false
+    
+# Infrastructure configuration
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+# No services to deploy - this is infrastructure only (WordPress containers are defined in Bicep)
+services: {}

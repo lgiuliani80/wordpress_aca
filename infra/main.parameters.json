@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "mysqlAdminUser": {
+      "value": "${MYSQL_ADMIN_USER=mysqladmin}"
+    },
+    "mysqlAdminPassword": {
+      "value": "${MYSQL_ADMIN_PASSWORD}"
+    },
+    "wordpressDbName": {
+      "value": "${WORDPRESS_DB_NAME=wordpress}"
+    },
+    "wordpressImage": {
+      "value": "${WORDPRESS_IMAGE=wordpress:php8.2-fpm}"
+    },
+    "nginxImage": {
+      "value": "${NGINX_IMAGE=nginx:alpine}"
+    },
+    "sitename": {
+      "value": "${SITE_NAME=wpsite}"
+    },
+    "allowedIpAddress": {
+      "value": "${ALLOWED_IP_ADDRESS=}"
+    }
+  }
+}

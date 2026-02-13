@@ -2,6 +2,8 @@
 
 This project provides Infrastructure as Code (IaC) using Azure Bicep to deploy a production-ready WordPress solution on Azure Container Apps with the following features:
 
+> **Now supports Azure Developer CLI (azd) for streamlined deployment!** See [Quick Start](#quick-start-with-azure-developer-cli-azd) below.
+
 ## Features
 
 - ✅ **WordPress on Container Apps**: Scalable WordPress hosting using Azure Container Apps with Workload Profiles
@@ -37,35 +39,94 @@ This project provides Infrastructure as Code (IaC) using Azure Bicep to deploy a
 
 ## Prerequisites
 
+- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) - **Recommended**
 - Azure CLI installed and configured
 - Azure subscription with appropriate permissions
 - Bicep CLI (included with Azure CLI 2.20.0+)
 
 ## Deployment
 
-### 1. Clone the repository
+This project supports two deployment methods:
+1. **Azure Developer CLI (azd)** - Recommended for streamlined deployment
+2. **Legacy scripts** - Traditional deployment using custom scripts (see [Legacy Deployment](#legacy-deployment))
+
+### Quick Start with Azure Developer CLI (azd)
+
+#### 1. Clone the repository
 
 ```bash
 git clone <your-repository-url>
 cd wordpress_aca
 ```
 
-### 2. Update parameters
+#### 2. Initialize and deploy
 
-Edit `parameters.json` and update the following values:
+```bash
+# Login to Azure
+azd auth login
 
-- `environmentName`: Unique name for your environment (1-9 characters, lowercase letters and numbers only, no hyphens or special characters)
-- `mysqlAdminPassword`: Strong password for MySQL admin (min 8 characters, must include uppercase, lowercase, numbers, and special characters)
-- `location`: Azure region (e.g., `westeurope`, `eastus`)
+# Initialize the environment (first time only)
+azd init
+
+# Provision and deploy infrastructure
+azd up
+```
+
+The `azd up` command will:
+- Prompt for required parameters:
+  - **Environment Name** (1-9 characters, lowercase letters/numbers only)
+  - **Azure Location** (e.g., `norwayeast`, `westeurope`)
+  - **MySQL Admin Username** (default: `mysqladmin`)
+  - **MySQL Admin Password** (min 8 chars, must have upper/lower/number/special)
+- Create the resource group
+- Deploy all Azure resources using Bicep
+- Automatically upload nginx.conf to the NFS share
+- Display the WordPress URL and other outputs
+
+#### 3. Set environment variables (optional)
+
+To avoid prompts during deployment, you can set environment variables:
+
+```bash
+# Required parameters
+azd env set MYSQL_ADMIN_PASSWORD 'YourSecurePassword123!'
+
+# Optional parameters with defaults
+azd env set MYSQL_ADMIN_USER 'mysqladmin'
+azd env set WORDPRESS_DB_NAME 'wordpress'
+azd env set SITE_NAME 'wpsite'
+```
+
+#### 4. Deploy updates
+
+After making changes to the infrastructure:
+
+```bash
+# Re-provision infrastructure
+azd provision
+
+# Or deploy everything again
+azd up
+```
+
+#### 5. Clean up resources
+
+To delete all resources:
+
+```bash
+azd down
+```
 
 **Important Naming Constraints**:
 - **Environment Name**: Must be 1-9 characters, lowercase letters and numbers only (no hyphens, underscores, or special characters). This is used to generate resource names including the storage account which has strict naming rules.
 - Examples of valid names: `wprod`, `wdev`, `wstaging`, `wp1`, `prod01`
 - Examples of invalid names: `wp-prod` (hyphen), `WordPress` (uppercase), `wordpress-prod` (too long + hyphen)
 
-**Important**: Never commit real passwords to version control. Use Azure Key Vault references or pass them as secure parameters during deployment.
+### Legacy Deployment
 
-### 3. Deploy using automated scripts
+If you prefer not to use azd, you can use the traditional deployment scripts:
+
+#### Deploy using automated scripts
 
 **Option A: Using Bash (Linux/macOS/WSL)**
 ```bash
@@ -81,17 +142,12 @@ chmod +x deploy.sh
 The deployment scripts will:
 - Verify Azure CLI installation and authentication
 - Prompt for deployment parameters with validation
-- Validate parameter constraints:
-  - Resource group name (1-90 chars, alphanumeric, -, _, ., ())
-  - Environment name (1-9 chars, lowercase/numbers only)
-  - MySQL username (1-16 chars, alphanumeric only)
-  - MySQL password complexity (min 8 chars, upper/lower/number/special)
-  - Ensure all generated resource names stay within Azure limits
+- Validate parameter constraints
 - Create the resource group
 - Deploy the Bicep template
 - Upload nginx.conf to the NFS share
 
-### 4. Deploy using Azure CLI manually
+#### Deploy using Azure CLI manually
 
 ```bash
 # Login to Azure
@@ -101,25 +157,16 @@ az login
 az account set --subscription "YOUR_SUBSCRIPTION_ID"
 
 # Create resource group
-az group create --name rg-wordpress-aca --location westeurope
+az group create --name rg-wordpress-aca --location norwayeast
 
-# Deploy the Bicep template
+# Deploy the Bicep template (from infra directory)
 az deployment group create \
   --resource-group rg-wordpress-aca \
-  --template-file main.bicep \
-  --parameters parameters.json \
+  --template-file infra/main.bicep \
+  --parameters environmentName='wprod' \
+  --parameters location='norwayeast' \
+  --parameters mysqlAdminUser='mysqladmin' \
   --parameters mysqlAdminPassword='YOUR_MYSQL_PASSWORD'
-```
-
-### 5. Alternative: Deploy with parameter file only
-
-For CI/CD pipelines, you can also deploy with all parameters in the file:
-
-```bash
-az deployment group create \
-  --resource-group rg-wordpress-aca \
-  --template-file main.bicep \
-  --parameters @parameters.json
 ```
 
 ## Post-Deployment
