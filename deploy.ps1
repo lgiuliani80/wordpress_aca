@@ -52,19 +52,81 @@ if ([string]::IsNullOrWhiteSpace($RESOURCE_GROUP)) {
     $RESOURCE_GROUP = "rg-wordpress-aca"
 }
 
+# Validate resource group name (1-90 chars, alphanumeric, -, _, ., ())
+if ($RESOURCE_GROUP.Length -lt 1 -or $RESOURCE_GROUP.Length -gt 90) {
+    Write-Error-Custom "Resource group name must be between 1 and 90 characters"
+    exit 1
+}
+if ($RESOURCE_GROUP -notmatch '^[a-zA-Z0-9._()-]+$') {
+    Write-Error-Custom "Resource group name can only contain alphanumeric characters, periods, underscores, hyphens, and parentheses"
+    exit 1
+}
+
 $LOCATION = Read-Host "Enter Location (default: westeurope)"
 if ([string]::IsNullOrWhiteSpace($LOCATION)) {
     $LOCATION = "westeurope"
 }
 
-$ENV_NAME = Read-Host "Enter Environment Name (default: wordpress-prod)"
+$ENV_NAME = Read-Host "Enter Environment Name (default: wprod)"
 if ([string]::IsNullOrWhiteSpace($ENV_NAME)) {
-    $ENV_NAME = "wordpress-prod"
+    $ENV_NAME = "wprod"
+}
+
+# Validate environment name for storage account compatibility
+# Storage account name will be: st${environmentName}${uniqueSuffix}
+# uniqueString generates ~13 chars, so we need environmentName to be max 9 chars (st=2 + env=9 + unique=13 = 24)
+if ($ENV_NAME.Length -lt 1 -or $ENV_NAME.Length -gt 9) {
+    Write-Error-Custom "Environment name must be between 1 and 9 characters to ensure storage account name stays within 24 character limit"
+    exit 1
+}
+if ($ENV_NAME -notmatch '^[a-z0-9]+$') {
+    Write-Error-Custom "Environment name can only contain lowercase letters and numbers (no hyphens, underscores, or special characters)"
+    Write-Error-Custom "This is required for storage account naming which only allows lowercase letters and numbers"
+    exit 1
+}
+
+# Validate resulting resource names won't exceed limits
+# MySQL server name: mysql-${environmentName}-${uniqueSuffix} (max 63 chars)
+$MYSQL_NAME_PREFIX = "mysql-$ENV_NAME-"
+if ($MYSQL_NAME_PREFIX.Length -gt 50) {
+    Write-Error-Custom "Environment name too long: MySQL server name would exceed 63 character limit"
+    exit 1
+}
+
+# VNet name: vnet-${environmentName} (max 64 chars)
+$VNET_NAME = "vnet-$ENV_NAME"
+if ($VNET_NAME.Length -gt 64) {
+    Write-Error-Custom "Environment name too long: VNet name would exceed 64 character limit"
+    exit 1
+}
+
+# Container App Environment: cae-${environmentName} (max 32 chars)
+$CAE_NAME = "cae-$ENV_NAME"
+if ($CAE_NAME.Length -gt 32) {
+    Write-Error-Custom "Environment name too long: Container App Environment name would exceed 32 character limit"
+    exit 1
+}
+
+# Container App: ca-wordpress-${environmentName} (max 32 chars)
+$CA_NAME = "ca-wordpress-$ENV_NAME"
+if ($CA_NAME.Length -gt 32) {
+    Write-Error-Custom "Environment name too long: Container App name would exceed 32 character limit"
+    exit 1
 }
 
 $MYSQL_USER = Read-Host "Enter MySQL Admin Username (default: mysqladmin)"
 if ([string]::IsNullOrWhiteSpace($MYSQL_USER)) {
     $MYSQL_USER = "mysqladmin"
+}
+
+# Validate MySQL username (alphanumeric only, no special characters)
+if ($MYSQL_USER -notmatch '^[a-zA-Z0-9]+$') {
+    Write-Error-Custom "MySQL username can only contain alphanumeric characters (no special characters or spaces)"
+    exit 1
+}
+if ($MYSQL_USER.Length -lt 1 -or $MYSQL_USER.Length -gt 16) {
+    Write-Error-Custom "MySQL username must be between 1 and 16 characters"
+    exit 1
 }
 
 $MYSQL_PASSWORD = Read-Host "Enter MySQL Admin Password (min 8 chars, must have upper, lower, number, special)" -AsSecureString
