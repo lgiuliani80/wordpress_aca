@@ -72,32 +72,58 @@ if ! [[ "$ENV_NAME" =~ ^[a-z0-9]+$ ]]; then
     exit 1
 fi
 
-# Validate resulting resource names won't exceed limits
-# MySQL server name: mysql-${environmentName}-${uniqueSuffix} (max 63 chars)
-MYSQL_NAME_PREFIX="mysql-${ENV_NAME}-"
-if [ ${#MYSQL_NAME_PREFIX} -gt 50 ]; then
-    print_error "Environment name too long: MySQL server name would exceed 63 character limit"
+# Validate resulting resource names won't exceed Azure limits
+# All validations account for prefixes/suffixes added in Bicep template
+# uniqueString() generates approximately 13 characters
+
+# Storage Account: st${environmentName}${uniqueSuffix} (max 24 chars)
+# Already validated above: 2 + ${#ENV_NAME} + 13 <= 24, so ${#ENV_NAME} <= 9
+
+# MySQL Server: mysql-${environmentName}-${uniqueSuffix} (max 63 chars)
+# Formula: 6 + ${#ENV_NAME} + 1 + 13 <= 63, so ${#ENV_NAME} <= 43
+MYSQL_PROJECTED_LENGTH=$((6 + ${#ENV_NAME} + 1 + 13))
+if [ $MYSQL_PROJECTED_LENGTH -gt 63 ]; then
+    print_error "Environment name too long: MySQL server name would be $MYSQL_PROJECTED_LENGTH chars, exceeding 63 character limit"
+    print_error "Projected name: mysql-${ENV_NAME}-<13-char-suffix>"
     exit 1
 fi
 
-# VNet name: vnet-${environmentName} (max 64 chars)
-VNET_NAME="vnet-${ENV_NAME}"
-if [ ${#VNET_NAME} -gt 64 ]; then
-    print_error "Environment name too long: VNet name would exceed 64 character limit"
+# Redis Cache: redis-${environmentName}-${uniqueSuffix} (max 63 chars)
+# Formula: 6 + ${#ENV_NAME} + 1 + 13 <= 63, so ${#ENV_NAME} <= 43
+REDIS_PROJECTED_LENGTH=$((6 + ${#ENV_NAME} + 1 + 13))
+if [ $REDIS_PROJECTED_LENGTH -gt 63 ]; then
+    print_error "Environment name too long: Redis cache name would be $REDIS_PROJECTED_LENGTH chars, exceeding 63 character limit"
+    print_error "Projected name: redis-${ENV_NAME}-<13-char-suffix>"
+    exit 1
+fi
+
+# VNet: vnet-${environmentName} (max 64 chars)
+# Formula: 5 + ${#ENV_NAME} <= 64, so ${#ENV_NAME} <= 59
+VNET_PROJECTED_LENGTH=$((5 + ${#ENV_NAME}))
+if [ $VNET_PROJECTED_LENGTH -gt 64 ]; then
+    print_error "Environment name too long: VNet name would be $VNET_PROJECTED_LENGTH chars, exceeding 64 character limit"
+    print_error "Projected name: vnet-${ENV_NAME}"
     exit 1
 fi
 
 # Container App Environment: cae-${environmentName} (max 32 chars)
-CAE_NAME="cae-${ENV_NAME}"
-if [ ${#CAE_NAME} -gt 32 ]; then
-    print_error "Environment name too long: Container App Environment name would exceed 32 character limit"
+# Formula: 4 + ${#ENV_NAME} <= 32, so ${#ENV_NAME} <= 28
+CAE_PROJECTED_LENGTH=$((4 + ${#ENV_NAME}))
+if [ $CAE_PROJECTED_LENGTH -gt 32 ]; then
+    print_error "Environment name too long: Container App Environment name would be $CAE_PROJECTED_LENGTH chars, exceeding 32 character limit"
+    print_error "Projected name: cae-${ENV_NAME}"
     exit 1
 fi
 
-# Container App: ca-wordpress-${environmentName} (max 32 chars)
-CA_NAME="ca-wordpress-${ENV_NAME}"
-if [ ${#CA_NAME} -gt 32 ]; then
-    print_error "Environment name too long: Container App name would exceed 32 character limit"
+# Container App: ca-${sitename}-${environmentName} (max 32 chars)
+# Default sitename is 'wpsite' (6 chars), but could be changed in Bicep
+# Formula: 3 + 6 + 1 + ${#ENV_NAME} <= 32, so ${#ENV_NAME} <= 22 (with default sitename)
+# Using default sitename for validation
+SITENAME_LENGTH=6  # default 'wpsite'
+CA_PROJECTED_LENGTH=$((3 + SITENAME_LENGTH + 1 + ${#ENV_NAME}))
+if [ $CA_PROJECTED_LENGTH -gt 32 ]; then
+    print_error "Environment name too long: Container App name would be $CA_PROJECTED_LENGTH chars, exceeding 32 character limit"
+    print_error "Projected name: ca-wpsite-${ENV_NAME} (assuming default sitename 'wpsite')"
     exit 1
 fi
 
