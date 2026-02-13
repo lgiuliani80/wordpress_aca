@@ -7,10 +7,18 @@ metadata:
 # Hooks configuration
 hooks:
   postprovision:
-    shell: sh
-    run: ./infra/hooks/postprovision.sh
-    continueOnError: false
-    interactive: false
+    # For Unix-like systems (Linux, macOS, WSL)
+    posix:
+      shell: sh
+      run: ./infra/hooks/postprovision.sh
+      continueOnError: false
+      interactive: false
+    # For Windows systems (PowerShell)
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1
+      continueOnError: false
+      interactive: false
     
 # Infrastructure configuration
 infra:

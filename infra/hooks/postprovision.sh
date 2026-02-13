@@ -24,6 +24,51 @@ print_error() {
 
 print_info "Running post-provision hook..."
 
+# Check if Azure CLI is installed
+if ! command -v az &> /dev/null; then
+    print_error "Azure CLI (az) is not installed"
+    print_error "Please install Azure CLI: https://docs.microsoft.com/cli/azure/install-azure-cli"
+    exit 1
+fi
+
+print_info "Azure CLI is installed"
+
+# Check if user is logged in to Azure
+if ! az account show &> /dev/null; then
+    print_error "Not logged in to Azure"
+    print_error "Please run: az login"
+    exit 1
+fi
+
+print_info "User is logged in to Azure"
+
+# Get current subscription ID
+CURRENT_SUBSCRIPTION=$(az account show --query id -o tsv 2>/dev/null)
+
+if [ -z "$CURRENT_SUBSCRIPTION" ]; then
+    print_error "Could not retrieve current Azure subscription"
+    exit 1
+fi
+
+print_info "Current Azure subscription: $CURRENT_SUBSCRIPTION"
+
+# Get azd target subscription from environment
+AZD_SUBSCRIPTION=$(azd env get-values | grep AZURE_SUBSCRIPTION_ID | cut -d'=' -f2 | tr -d '"')
+
+# If azd has a specific subscription set, verify it matches
+if [ -n "$AZD_SUBSCRIPTION" ]; then
+    if [ "$CURRENT_SUBSCRIPTION" != "$AZD_SUBSCRIPTION" ]; then
+        print_error "Azure subscription mismatch!"
+        print_error "Current subscription: $CURRENT_SUBSCRIPTION"
+        print_error "azd target subscription: $AZD_SUBSCRIPTION"
+        print_error "Please switch subscription with: az account set --subscription $AZD_SUBSCRIPTION"
+        exit 1
+    fi
+    print_info "Azure subscription matches azd target subscription"
+else
+    print_warning "No AZURE_SUBSCRIPTION_ID set in azd environment, using current subscription"
+fi
+
 # Get the outputs from the deployment
 STORAGE_ACCOUNT_NAME=$(azd env get-values | grep STORAGE_ACCOUNT_NAME | cut -d'=' -f2 | tr -d '"')
 RESOURCE_GROUP_NAME=$(azd env get-values | grep AZURE_RESOURCE_GROUP_NAME | cut -d'=' -f2 | tr -d '"')
