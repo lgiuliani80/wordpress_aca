@@ -524,7 +524,8 @@ resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
             }
             {
               volumeName: 'nginx-config'
-              mountPath: '/etc/nginx'
+              mountPath: '/etc/nginx/nginx.conf'
+              subPath: 'nginx.conf'
             }
           ]
         }
