@@ -214,31 +214,6 @@ sku: {
 }
 ```
 
-### Modify Nginx Configuration
-
-The included `nginx.conf` file contains an optimized Nginx configuration for WordPress. To use a custom configuration:
-
-**Option 1: Build a custom Nginx image** (Recommended)
-```dockerfile
-FROM nginx:alpine
-COPY nginx.conf /etc/nginx/nginx.conf
-```
-
-Then update the `nginxImage` parameter to use your custom image.
-
-**Option 2: Use init container to copy configuration**
-Add an init container in the Container App definition that copies the configuration from a mounted volume or downloads it at startup.
-
-**Option 3: Use environment-specific configuration**
-Store configurations in Azure App Configuration and load them at container startup.
-
-The default `nginx:alpine` image includes a basic configuration that works with PHP-FPM, but the provided `nginx.conf` includes optimizations for WordPress such as:
-- FastCGI configuration for PHP
-- Static content caching
-- Gzip compression
-- WordPress-specific rules
-- Security headers
-
 ## Monitoring
 
 The deployment includes Log Analytics workspace integration:
@@ -308,3 +283,9 @@ Feel free to submit issues and pull requests to improve this deployment template
 ## License
 
 This project is provided as-is for demonstration and learning purposes.
+
+## [IMPORTANT!] Deployment notes
+
+Some regions may not support all features (e.g., NFS on Premium Storage). Always check Azure documentation for regional availability before deploying.  
+Furthermore others can have capacity constraints as for MySQL Flexible Server.  
+Tests have been carried out in `norwayeast` region, which supports all features used in this deployment and does not have (as of now Feb 2026) MySQL Flexible Server capacity constraints.

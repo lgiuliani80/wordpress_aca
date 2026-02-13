@@ -81,6 +81,15 @@ if ! [[ "$MYSQL_PASSWORD" =~ [^a-zA-Z0-9] ]]; then
     exit 1
 fi
 
+# Get current public IP address
+print_info "Retrieving current public IP address from ipify.org..."
+CURRENT_IP=$(curl -s --max-time 10 "https://api.ipify.org?format=text" 2>/dev/null || echo "")
+if [ -n "$CURRENT_IP" ]; then
+    print_info "Current public IP: $CURRENT_IP"
+else
+    print_warning "Could not retrieve public IP. Deployment will proceed without IP restriction."
+fi
+
 # Create resource group
 print_info "Creating resource group: $RESOURCE_GROUP in $LOCATION..."
 az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output table
@@ -96,6 +105,7 @@ DEPLOYMENT_OUTPUT=$(az deployment group create \
     --parameters location="$LOCATION" \
     --parameters mysqlAdminUser="$MYSQL_USER" \
     --parameters mysqlAdminPassword="$MYSQL_PASSWORD" \
+    --parameters allowedIpAddress="$CURRENT_IP" \
     --output json)
 
 if [ $? -eq 0 ]; then

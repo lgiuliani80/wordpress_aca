@@ -35,6 +35,7 @@ param allowedIpAddress string = ''
 var uniqueSuffix = take(uniqueString(resourceGroup().id),4)
 var storageAccountName = 'st${environmentName}${uniqueSuffix}'
 var mysqlServerName = 'mysql-${environmentName}-${uniqueSuffix}'
+var redisName = 'redis-${environmentName}-${uniqueSuffix}'
 var vnetName = 'vnet-${environmentName}'
 var containerAppEnvName = 'cae-${environmentName}'
 var wordpressAppName = 'ca-${sitename}-${environmentName}'
@@ -98,7 +99,6 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' = {
   }
   sku: {
     name: 'PremiumV2_LRS'
-    tier: 'Premium'
   }
   kind: 'FileStorage'
   properties: {
@@ -148,10 +148,6 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' = {
 resource files_default 'Microsoft.Storage/storageAccounts/fileServices@2025-01-01' = {
   parent: storageAccount
   name: 'default'
-  sku: {
-    name: 'PremiumV2_LRS'
-    tier: 'Premium'
-  }
   properties: {
     protocolSettings: {
       smb: {
@@ -271,24 +267,20 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2021-05-01' = {
   sku: {
     name: 'Standard_B1ms'
     tier: 'Burstable'
-    capacity: 1
   }
   properties: {
     createMode: 'Default'
     version: '8.0.21'
     administratorLogin: mysqlAdminUser
     administratorLoginPassword: mysqlAdminPassword
-    Storage: {
-      StorageSizeGB: 20
-      Autogrow: 'Enabled'
-      AutoIoScaling: 'Enabled'
-      LogOnDisk: 'Disabled'
+    storage: {
+      storageSizeGB: 20
     }
-    Network: {
+    network: {
       delegatedSubnetResourceId: vnet.properties.subnets[2].id // mysql-subnet
       privateDnsZoneResourceId: mysqlPrivateDnsZone.id
     }
-    Backup: {
+    backup: {
       backupRetentionDays: 7
       geoRedundantBackup: 'Disabled'
     }
@@ -296,7 +288,6 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2021-05-01' = {
     highAvailability: {
       mode: 'Disabled'
     }
-    lowerCaseTableNames: 1
   }
   dependsOn: [
     mysqlPrivateDnsZoneLink
@@ -311,6 +302,99 @@ resource mysqlDatabase 'Microsoft.DBforMySQL/flexibleServers/databases@2021-05-0
   properties: {
     charset: 'utf8mb4'
     collation: 'utf8mb4_unicode_ci'
+  }
+}
+
+// Azure Managed Redis (Redis Enterprise) for session caching
+resource redisEnterprise 'Microsoft.Cache/redisEnterprise@2025-07-01' = {
+  name: redisName
+  location: location
+  tags: {
+    SecurityControl: 'Ignore'
+  }
+  sku: {
+    name: 'Balanced_B5'
+  }
+  identity: {
+    type: 'None'
+  }
+  properties: {
+    minimumTlsVersion: '1.2'
+    publicNetworkAccess: 'Disabled'
+  }
+}
+
+// Redis Enterprise Database with non-clustered policy
+resource redisEnterpriseDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07-01' = {
+  name: 'default'
+  parent: redisEnterprise
+  properties: {
+    clientProtocol: 'Plaintext'
+    port: 10000
+    clusteringPolicy: 'NoCluster'
+    evictionPolicy: 'VolatileLRU'
+    accessKeysAuthentication: 'Enabled'
+    persistence: {
+      aofEnabled: false
+      rdbEnabled: false
+    }
+  }
+}
+
+// Private DNS Zone for Redis Enterprise
+resource redisPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.redis.azure.net'
+  location: 'global'
+}
+
+// Link Redis Private DNS Zone to VNet
+resource redisPrivateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: redisPrivateDnsZone
+  name: '${vnetName}-redis-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnet.id
+    }
+  }
+}
+
+// Private Endpoint for Redis Enterprise
+resource redisPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+  name: 'pe-${redisName}'
+  location: location
+  properties: {
+    subnet: {
+      id: vnet.properties.subnets[1].id // private-endpoints-subnet
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'redis-connection'
+        properties: {
+          privateLinkServiceId: redisEnterprise.id
+          groupIds: [
+            'redisEnterprise'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+// Private DNS Zone Group for Redis
+resource redisPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+  parent: redisPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'config1'
+        properties: {
+          privateDnsZoneId: redisPrivateDnsZone.id
+        }
+      }
+    ]
   }
 }
 
@@ -396,23 +480,31 @@ resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2025-02
 
 // WordPress Container App with Nginx + PHP-FPM
 // WordPress files and nginx config are mounted via NFS-enabled Azure Files
-resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
+resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
   name: wordpressAppName
   location: location
   properties: {
     managedEnvironmentId: containerAppEnv.id
     workloadProfileName: 'D4'
     configuration: {
+      activeRevisionsMode: 'Single'
       ingress: {
         external: true
         targetPort: 80
         transport: 'http'
         allowInsecure: false
+        stickySessions: {
+          affinity: 'sticky' // TODO: this can be removed if the backing of sessions is done via Redis or similar, but for simplicity we use in-memory session handling in this example, which requires sticky sessions to work properly
+        }
       }
       secrets: [
         {
           name: 'mysql-password'
           value: mysqlAdminPassword
+        }
+        {
+          name: 'redis-password'
+          value: redisEnterpriseDatabase.listKeys().primaryKey
         }
       ]
     }
@@ -464,6 +556,14 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'WORDPRESS_CONFIG_EXTRA'
               value: 'define(\'FS_METHOD\', \'direct\');'
             }
+            {
+              name: 'REDIS_HOST'
+              value: '${redisName}.${location}.redis.azure.net:10000'
+            }
+            {
+              name: 'REDIS_PASSWORD'
+              secretRef: 'redis-password'
+            }
           ]
           volumeMounts: [
             {
@@ -505,6 +605,7 @@ resource wordpressApp 'Microsoft.App/containerApps@2023-05-01' = {
     wordpressNfsStorage
     nginxConfigNfsStorage
     mysqlDatabase
+    redisPrivateDnsZoneGroup
   ]
 }
 
@@ -513,3 +614,4 @@ output wordpressUrl string = 'https://${wordpressApp.properties.configuration.in
 output storageAccountName string = storageAccount.name
 output mysqlServerFqdn string = mysqlServer.properties.fullyQualifiedDomainName
 output containerAppEnvId string = containerAppEnv.id
+output redisHostName string = '${redisName}.${location}.redis.azure.net'

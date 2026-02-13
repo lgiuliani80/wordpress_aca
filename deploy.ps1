@@ -98,6 +98,17 @@ if ($MYSQL_PASSWORD_PLAIN -notmatch '[^a-zA-Z0-9]') {
     exit 1
 }
 
+# Get current public IP address
+Write-Info "Retrieving current public IP address from ipify.org..."
+try {
+    $CURRENT_IP = (Invoke-RestMethod -Uri "https://api.ipify.org?format=text" -TimeoutSec 10).Trim()
+    Write-Info "Current public IP: $CURRENT_IP"
+}
+catch {
+    Write-Warning-Custom "Could not retrieve public IP. Deployment will proceed without IP restriction."
+    $CURRENT_IP = ""
+}
+
 # Create resource group
 Write-Info "Creating resource group: $RESOURCE_GROUP in $LOCATION..."
 az group create --name $RESOURCE_GROUP --location $LOCATION --output table
@@ -106,6 +117,15 @@ az group create --name $RESOURCE_GROUP --location $LOCATION --output table
 Write-Info "Starting Bicep deployment..."
 Write-Warning-Custom "This may take 15-20 minutes. Please be patient..."
 
+#az deployment group create `
+#    --resource-group $RESOURCE_GROUP `
+#    --template-file main.bicep `
+#    --parameters environmentName=$ENV_NAME `
+#    --parameters location=$LOCATION `
+#    --parameters mysqlAdminUser=$MYSQL_USER `
+#    --parameters mysqlAdminPassword=$MYSQL_PASSWORD_PLAIN `
+#    --parameters allowedIpAddress=$CURRENT_IP --debug
+
 $deploymentOutput = az deployment group create `
     --resource-group $RESOURCE_GROUP `
     --template-file main.bicep `
@@ -113,6 +133,7 @@ $deploymentOutput = az deployment group create `
     --parameters location=$LOCATION `
     --parameters mysqlAdminUser=$MYSQL_USER `
     --parameters mysqlAdminPassword=$MYSQL_PASSWORD_PLAIN `
+    --parameters allowedIpAddress=$CURRENT_IP `
     --output json | ConvertFrom-Json
 
 if ($LASTEXITCODE -eq 0) {
