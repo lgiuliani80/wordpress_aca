@@ -29,12 +29,12 @@ This document describes the organization of files in the WordPress on Azure Cont
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `deploy.sh` | Bash deployment script | ✅ Still works, but azd recommended |
-| `deploy.ps1` | PowerShell deployment script | ✅ Still works, but azd recommended |
 | `main.bicep` | Legacy Bicep template location | ⚠️ Use `infra/main.bicep` instead |
 | `nginx.conf` | Legacy nginx configuration location | ⚠️ Use `infra/nginx.conf` instead |
 | `parameters.json` | Legacy parameter file | ⚠️ Use azd env variables instead |
 | `parameters.dev.json` | Legacy dev parameter file | ⚠️ Use azd env variables instead |
+
+**Note**: Legacy deployment scripts (`deploy.sh` and `deploy.ps1`) have been removed. All deployment now uses azd with automatic parameter validation through preprovision hooks.
 
 ## Infrastructure Directory (`infra/`)
 
@@ -54,10 +54,18 @@ Contains deployment lifecycle hooks. Platform-specific versions are automaticall
 
 | File | Purpose | Platform |
 |------|---------|----------|
+| `preprovision.sh` | Pre-provision parameter validation hook | Linux/macOS/WSL |
+| `preprovision.ps1` | Pre-provision parameter validation hook | Windows PowerShell |
 | `postprovision.sh` | Post-provision hook that uploads nginx.conf to NFS share | Linux/macOS/WSL |
 | `postprovision.ps1` | Post-provision hook that uploads nginx.conf to NFS share | Windows PowerShell |
 
-Both scripts perform the same operations:
+**Preprovision hooks** validate parameters before deployment:
+- Environment name (1-9 chars, lowercase/numbers only)
+- MySQL username (1-16 chars, alphanumeric only)
+- MySQL password complexity (min 8 chars with upper/lower/number/special)
+- Resource name length projections for all Azure resources
+
+**Postprovision hooks** perform post-deployment tasks:
 - Validate Azure CLI is installed and user is logged in
 - Verify subscription matches azd target (if set)
 - Upload nginx.conf to the NFS share
@@ -76,21 +84,13 @@ Both scripts perform the same operations:
 ```
 azure.yaml → points to infra/ directory
   ↓
+infra/hooks/preprovision.sh/.ps1 → Validates all parameters
+  ↓
 infra/main.bicep → Deploys infrastructure
   ↓
 infra/main.parameters.json → Parameters from environment variables
   ↓
-infra/hooks/postprovision.sh → Uploads nginx.conf to storage
-```
-
-### Using Legacy Scripts - Still Supported
-
-```
-deploy.sh or deploy.ps1 → Interactive prompts
-  ↓
-main.bicep (or infra/main.bicep) → Deploys infrastructure
-  ↓
-Script uploads nginx.conf → To storage
+infra/hooks/postprovision.sh/.ps1 → Uploads nginx.conf to storage
 ```
 
 ### Using Azure CLI Manually
@@ -100,6 +100,8 @@ Manual commands
   ↓
 infra/main.bicep → Deploys infrastructure
   ↓
+Manual upload → nginx.conf to storage
+```
 Manual upload → nginx.conf to storage
 ```
 

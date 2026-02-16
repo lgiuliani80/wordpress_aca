@@ -46,9 +46,7 @@ This project provides Infrastructure as Code (IaC) using Azure Bicep to deploy a
 
 ## Deployment
 
-This project supports two deployment methods:
-1. **Azure Developer CLI (azd)** - Recommended for streamlined deployment
-2. **Legacy scripts** - Traditional deployment using custom scripts (see [Legacy Deployment](#legacy-deployment))
+This project uses Azure Developer CLI (azd) for streamlined deployment with automatic parameter validation.
 
 ### Quick Start with Azure Developer CLI (azd)
 
@@ -68,30 +66,33 @@ azd auth login
 # Initialize the environment (first time only)
 azd init
 
+# Set required parameters
+azd env set MYSQL_ADMIN_PASSWORD 'YourSecurePassword123!'
+
 # Provision and deploy infrastructure
 azd up
 ```
 
 The `azd up` command will:
-- Prompt for required parameters:
+- **Validate all parameters** automatically via preprovision hook:
   - **Environment Name** (1-9 characters, lowercase letters/numbers only)
-  - **Azure Location** (e.g., `norwayeast`, `westeurope`)
-  - **MySQL Admin Username** (default: `mysqladmin`)
+  - **MySQL Admin Username** (1-16 characters, alphanumeric only)
   - **MySQL Admin Password** (min 8 chars, must have upper/lower/number/special)
+  - **Resource name lengths** (ensures all Azure resource names stay within limits)
 - Create the resource group
 - Deploy all Azure resources using Bicep
 - Automatically upload nginx.conf to the NFS share
 - Display the WordPress URL and other outputs
 
-#### 3. Set environment variables (optional)
+#### 3. Set environment variables
 
-To avoid prompts during deployment, you can set environment variables:
-
+Required parameters:
 ```bash
-# Required parameters
 azd env set MYSQL_ADMIN_PASSWORD 'YourSecurePassword123!'
+```
 
-# Optional parameters with defaults
+Optional parameters with defaults:
+```bash
 azd env set MYSQL_ADMIN_USER 'mysqladmin'
 azd env set WORDPRESS_DB_NAME 'wordpress'
 azd env set SITE_NAME 'wpsite'
@@ -122,32 +123,9 @@ azd down
 - Examples of valid names: `wprod`, `wdev`, `wstaging`, `wp1`, `prod01`
 - Examples of invalid names: `wp-prod` (hyphen), `WordPress` (uppercase), `wordpress-prod` (too long + hyphen)
 
-### Legacy Deployment
+### Alternative: Deploy using Azure CLI manually
 
-If you prefer not to use azd, you can use the traditional deployment scripts:
-
-#### Deploy using automated scripts
-
-**Option A: Using Bash (Linux/macOS/WSL)**
-```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-**Option B: Using PowerShell (Windows/PowerShell Core)**
-```powershell
-.\deploy.ps1
-```
-
-The deployment scripts will:
-- Verify Azure CLI installation and authentication
-- Prompt for deployment parameters with validation
-- Validate parameter constraints
-- Create the resource group
-- Deploy the Bicep template
-- Upload nginx.conf to the NFS share
-
-#### Deploy using Azure CLI manually
+If you prefer direct Azure CLI deployment without azd:
 
 ```bash
 # Login to Azure
@@ -330,8 +308,23 @@ az containerapp logs show \
 To delete all resources:
 
 ```bash
-az group delete --name rg-wordpress-aca --yes --no-wait
+azd down
+# Or manually:
+# az group delete --name rg-wordpress-aca --yes --no-wait
 ```
+
+## Documentation
+
+This project includes comprehensive documentation:
+
+- **[README.md](./README.md)** - This file: Overview and quick start guide
+- **[AZD_GUIDE.md](./AZD_GUIDE.md)** - Complete Azure Developer CLI usage guide with detailed examples
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed architecture and component documentation
+- **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)** - File organization and project structure reference
+- **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - Guide for understanding the current deployment approach
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common commands and operations
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Troubleshooting guide for common issues
+- **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** - Quick deployment summary and overview
 
 ## Contributing
 

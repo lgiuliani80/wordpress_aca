@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> **Deployment**: This solution can be deployed using [Azure Developer CLI (azd)](./AZD_GUIDE.md) for a streamlined experience, or using the [legacy deployment scripts](./README.md#legacy-deployment).
+> **Deployment**: This solution can be deployed using [Azure Developer CLI (azd)](./AZD_GUIDE.md) for a streamlined experience with automatic parameter validation.
 
 ## Component Details
 
@@ -9,7 +9,7 @@
 The solution uses a dedicated VNet with three subnets for network isolation:
 
 - **Container Apps Subnet (10.0.0.0/23)**: Delegated to `Microsoft.App/environments`
-- **Private Endpoints Subnet (10.0.2.0/24)**: Hosts private endpoints for Storage Account
+- **Private Endpoints Subnet (10.0.2.0/24)**: Hosts private endpoints for Storage Account and Redis Enterprise
 - **MySQL Subnet (10.0.3.0/24)**: Delegated to `Microsoft.DBforMySQL/flexibleServers`
 
 ### 2. Storage Account (Premium FileStorage)
@@ -22,7 +22,7 @@ The solution uses a dedicated VNet with three subnets for network isolation:
   - `wordpress`: WordPress files mounted at `/var/www/html` (NFS 4.1)
   - `nginx-config`: Nginx configuration mounted at `/etc/nginx` (NFS 4.1)
 
-**Note**: Premium FileStorage with NFS 4.1 protocol enabled provides true NFS mounting for WordPress files and nginx configuration. The deployment script automatically uploads nginx.conf to the NFS share after infrastructure provisioning.
+**Note**: Premium FileStorage with NFS 4.1 protocol enabled provides true NFS mounting for WordPress files and nginx configuration. The postprovision hook automatically uploads nginx.conf to the NFS share after infrastructure provisioning.
 
 ### 3. MySQL Flexible Server
 
@@ -36,7 +36,26 @@ The solution uses a dedicated VNet with three subnets for network isolation:
 - **Network**: VNet integrated (private access only)
 - **Character Set**: utf8mb4 with utf8mb4_unicode_ci collation
 
-### 4. Container Apps Environment
+### 4. Redis Enterprise
+
+- **Purpose**: Session caching and object caching for WordPress
+- **SKU**: Balanced_B5 (balanced performance tier)
+- **Network**: Private endpoint with dedicated private DNS zone (privatelink.redis.azure.net)
+- **Security**: 
+  - Public network access disabled
+  - TLS 1.2 minimum version
+  - Access key authentication enabled
+- **Database Configuration**:
+  - Port: 10000
+  - Client Protocol: Plaintext
+  - Clustering Policy: NoCluster (single shard)
+  - Eviction Policy: VolatileLRU (volatile keys with least recently used eviction)
+  - Persistence: Disabled (AOF and RDB both disabled for performance)
+- **Private Connectivity**: Accessible only through private endpoint in VNet
+
+**Note**: Redis Enterprise provides enterprise-grade caching with high availability and performance for WordPress session management and object caching.
+
+### 5. Container Apps Environment
 
 - **Type**: Workload Profile-based environment
 - **VNet Integration**: Uses dedicated subnet
@@ -45,7 +64,7 @@ The solution uses a dedicated VNet with three subnets for network isolation:
   - **Consumption**: Default profile for system workloads
   - **D4**: Dedicated profile for WordPress (4 vCPU, 16 GB RAM per node)
 
-### 5. WordPress Container App
+### 6. WordPress Container App
 
 The WordPress application runs as a multi-container app with:
 

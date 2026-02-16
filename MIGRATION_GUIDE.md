@@ -1,42 +1,44 @@
-# Migration Guide: Legacy to Azure Developer CLI (azd)
+# Migration Guide: Deployment with Azure Developer CLI (azd)
 
-This guide helps you migrate from the legacy deployment scripts to Azure Developer CLI (azd).
+This guide explains the current deployment approach using Azure Developer CLI (azd) with automatic parameter validation.
 
-## What Changed?
+## Current Structure
 
-### New Files and Structure
+### Files and Organization
 
 ```
 wordpress_aca/
-├── azure.yaml                      # NEW: azd configuration
-├── .azure/                         # NEW: azd environments (gitignored)
-├── .env.template                   # NEW: Environment variables template
-├── .azdignore                      # NEW: azd ignore patterns
-├── AZD_GUIDE.md                    # NEW: Comprehensive azd documentation
-├── infra/                          # NEW: Infrastructure directory
-│   ├── main.bicep                  # Bicep template (with additional outputs)
-│   ├── main.parameters.json        # NEW: azd parameter file with variable substitution
+├── azure.yaml                      # azd configuration with preprovision and postprovision hooks
+├── .azure/                         # azd environments (gitignored)
+├── .env.template                   # Environment variables template
+├── .azdignore                      # azd ignore patterns
+├── AZD_GUIDE.md                    # Comprehensive azd documentation
+├── infra/                          # Infrastructure directory
+│   ├── main.bicep                  # Bicep template (with azd-specific outputs)
+│   ├── main.parameters.json        # azd parameter file with variable substitution
 │   ├── nginx.conf                  # Nginx configuration
 │   └── hooks/
-│       └── postprovision.sh        # NEW: Post-provision automation
-├── deploy.sh                       # LEGACY: Still works but consider using azd
-├── deploy.ps1                      # LEGACY: Still works but consider using azd
-├── main.bicep                      # LEGACY: Use infra/main.bicep instead
-├── nginx.conf                      # LEGACY: Use infra/nginx.conf instead
-├── parameters.json                 # LEGACY: Use azd env variables instead
-└── parameters.dev.json             # LEGACY: Use azd env variables instead
+│       ├── preprovision.sh         # Pre-provision parameter validation (Bash)
+│       ├── preprovision.ps1        # Pre-provision parameter validation (PowerShell)
+│       ├── postprovision.sh        # Post-provision automation (Bash)
+│       └── postprovision.ps1       # Post-provision automation (PowerShell)
+├── main.bicep                      # Root-level Bicep (for backward compatibility)
+├── nginx.conf                      # Root-level nginx.conf (for backward compatibility)
+├── parameters.json                 # Root-level parameters (for backward compatibility)
+└── parameters.dev.json             # Root-level dev parameters (for backward compatibility)
 ```
 
 ## Why Azure Developer CLI?
 
 Azure Developer CLI (azd) provides:
 
+✅ **Automatic Parameter Validation**: Preprovision hooks validate all parameters before deployment  
 ✅ **Simpler Commands**: `azd up` instead of running scripts with multiple prompts  
 ✅ **Environment Management**: Easy switching between dev, staging, prod environments  
 ✅ **Better CI/CD Integration**: Cleaner automation with environment variables  
 ✅ **Standardized Structure**: Follows Azure best practices for IaC projects  
 ✅ **Lifecycle Management**: Built-in support for provision, deploy, down commands  
-✅ **Extensibility**: Hooks for custom automation (like nginx.conf upload)  
+✅ **Extensibility**: Hooks for custom automation and validation  
 
 ## Migration Options
 

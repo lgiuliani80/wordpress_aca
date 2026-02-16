@@ -25,10 +25,10 @@ wordpress_aca/
 │   ├── main.parameters.json        # Parameters with azd variable substitution
 │   ├── nginx.conf                  # Nginx configuration
 │   └── hooks/
+│       ├── preprovision.sh         # Pre-provision validation hook (Bash/Linux/macOS/WSL)
+│       ├── preprovision.ps1        # Pre-provision validation hook (PowerShell/Windows)
 │       ├── postprovision.sh        # Post-provision hook (Bash/Linux/macOS/WSL)
 │       └── postprovision.ps1       # Post-provision hook (PowerShell/Windows)
-├── deploy.sh                       # Legacy deployment script
-├── deploy.ps1                      # Legacy deployment script (PowerShell)
 └── README.md                       # Main documentation
 ```
 
@@ -242,6 +242,31 @@ The `infra/main.parameters.json` file uses azd variable substitution syntax:
 
 ## Hooks
 
+### Pre-Provision Hook
+
+The pre-provision hook runs **before** infrastructure provisioning to validate all input parameters:
+
+- **Linux/macOS/WSL**: `infra/hooks/preprovision.sh` (Bash)
+- **Windows**: `infra/hooks/preprovision.ps1` (PowerShell)
+
+**What it does:**
+1. Validates `AZURE_ENV_NAME` (environment name): 1-9 characters, lowercase letters and numbers only
+2. Validates `MYSQL_ADMIN_USER`: 1-16 characters, alphanumeric only
+3. Validates `MYSQL_ADMIN_PASSWORD`: minimum 8 characters with uppercase, lowercase, numbers, and special characters
+4. Validates projected resource name lengths for all Azure resources:
+   - Storage Account: max 24 chars
+   - MySQL Server: max 63 chars
+   - Redis Cache: max 63 chars
+   - VNet: max 64 chars
+   - Container App Environment: max 32 chars
+   - Container App: max 32 chars
+5. Provides detailed error messages if validation fails
+
+**Why it's important:**
+- Catches invalid parameters before deployment starts
+- Prevents failed deployments due to naming constraint violations
+- Saves time by failing fast with clear error messages
+
 ### Post-Provision Hook
 
 The post-provision hook runs after infrastructure provisioning and is available in both Bash and PowerShell versions:
@@ -260,6 +285,18 @@ The post-provision hook runs after infrastructure provisioning and is available 
 **Configuration in azure.yaml:**
 ```yaml
 hooks:
+  preprovision:
+    # For Unix-like systems (Linux, macOS, WSL)
+    posix:
+      shell: sh
+      run: ./infra/hooks/preprovision.sh
+      continueOnError: false
+    # For Windows systems (PowerShell)
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/preprovision.ps1
+      continueOnError: false
+  
   postprovision:
     # For Unix-like systems (Linux, macOS, WSL)
     posix:
@@ -273,7 +310,7 @@ hooks:
       continueOnError: false
 ```
 
-The appropriate script is automatically selected based on your operating system.
+The appropriate scripts are automatically selected based on your operating system.
 
 ## CI/CD Integration
 
@@ -396,6 +433,34 @@ azd env set MYSQL_ADMIN_PASSWORD 'YourPassword123!'
 Your environment name must be 1-9 characters:
 ```bash
 azd init  # Create new environment with shorter name
+```
+
+### Pre-provision validation fails
+
+The preprovision hook validates all parameters before deployment. Common issues:
+
+**Environment name validation errors:**
+- Must be 1-9 characters, lowercase letters and numbers only
+- No hyphens, underscores, or special characters allowed
+- Example valid names: `wprod`, `wdev`, `wp1`
+
+**MySQL password validation errors:**
+- Must be at least 8 characters
+- Must contain uppercase, lowercase, numbers, and special characters
+- Set with: `azd env set MYSQL_ADMIN_PASSWORD 'YourPassword123!'`
+
+**Resource name length errors:**
+- Environment name too long for generated resource names
+- Consider using a shorter environment name or site name
+- The hook shows projected lengths for all resources
+
+Run the hook manually to see detailed validation:
+```bash
+# Bash
+./infra/hooks/preprovision.sh
+
+# PowerShell
+./infra/hooks/preprovision.ps1
 ```
 
 ### Post-provision hook fails
