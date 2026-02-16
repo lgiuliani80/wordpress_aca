@@ -102,8 +102,6 @@ infra/main.bicep → Deploys infrastructure
   ↓
 Manual upload → nginx.conf to storage
 ```
-Manual upload → nginx.conf to storage
-```
 
 ## Key Files for Modification
 
