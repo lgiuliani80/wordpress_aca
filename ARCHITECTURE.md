@@ -245,14 +245,14 @@ Both zones are linked to the VNet for automatic name resolution.
 1. **NFS Support**: While Premium FileStorage supports NFS, Container Apps uses SMB for managed mounts
 2. **SSL/TLS**: Configure custom domain and certificates for production HTTPS
 3. **WordPress Plugins**: Some plugins may have compatibility issues with shared storage
-4. **Session Affinity**: Not enabled by default; consider Redis for session storage in multi-replica scenarios
+4. **Session Affinity**: Enabled (sticky) by default; set `PHP_SESSIONS_IN_REDIS=true` to use Redis for session storage and disable sticky sessions
 5. **File Upload Size**: Limited by Nginx configuration (default 100MB)
 
 ## Future Enhancements
 
 1. Add Azure Front Door for global load balancing
 2. Implement Azure CDN for static content delivery
-3. Add Redis for object caching and session storage
+3. ~~Add Redis for object caching and session storage~~ — Done: set `PHP_SESSIONS_IN_REDIS=true`
 4. Configure custom domain with managed certificate
 5. Enable Azure WAF for additional security
 6. Implement backup automation for WordPress files

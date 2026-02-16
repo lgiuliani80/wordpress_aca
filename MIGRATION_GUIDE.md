@@ -121,6 +121,7 @@ azd up
 | Nginx Image | `NGINX_IMAGE` | `nginx:alpine` | No |
 | Site Name | `SITE_NAME` | `wpsite` | No |
 | Allowed IP Address | `ALLOWED_IP_ADDRESS` | (empty) | No |
+| PHP Sessions in Redis | `PHP_SESSIONS_IN_REDIS` | `false` | No |
 
 ## Setting Up Your First azd Environment
 

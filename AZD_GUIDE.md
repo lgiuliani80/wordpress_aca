@@ -106,6 +106,8 @@ azd env set WORDPRESS_DB_NAME 'wordpress'
 azd env set SITE_NAME 'wpsite'
 azd env set WORDPRESS_IMAGE 'wordpress:php8.2-fpm'
 azd env set NGINX_IMAGE 'nginx:alpine'
+azd env set ALLOWED_IP_ADDRESS ''          # IP to allow through MySQL firewall
+azd env set PHP_SESSIONS_IN_REDIS false     # Enable Redis-backed PHP sessions
 ```
 
 ### 5. Deploy Everything
@@ -239,6 +241,12 @@ The `infra/main.parameters.json` file uses azd variable substitution syntax:
 - `${AZURE_LOCATION}` - Automatically set by azd (your selected region)
 - `${MYSQL_ADMIN_PASSWORD}` - Must be set via `azd env set`
 - `${MYSQL_ADMIN_USER=mysqladmin}` - Has a default value of `mysqladmin`
+- `${WORDPRESS_DB_NAME=wordpress}` - WordPress database name
+- `${WORDPRESS_IMAGE=wordpress:php8.2-fpm}` - WordPress container image
+- `${NGINX_IMAGE=nginx:alpine}` - Nginx container image
+- `${SITE_NAME=wpsite}` - Site name used in resource naming
+- `${ALLOWED_IP_ADDRESS=}` - IP address to allow through MySQL firewall
+- `${PHP_SESSIONS_IN_REDIS=false}` - Enable Redis-backed PHP sessions
 
 ## Hooks
 

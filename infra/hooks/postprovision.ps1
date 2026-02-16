@@ -160,4 +160,33 @@ if (Test-Path $nginxConfPath) {
     exit 1
 }
 
+# Upload custom-php.ini to NFS share
+$phpIniPath = Join-Path (Split-Path -Parent $PSScriptRoot) "custom-php.ini"
+
+if (Test-Path $phpIniPath) {
+    Write-Info "Uploading custom-php.ini to NFS share..."
+    
+    try {
+        az storage file upload `
+            --account-name $storageAccountName `
+            --account-key $storageKey `
+            --share-name "php-config" `
+            --source $phpIniPath `
+            --path "custom-php.ini" `
+            --output table
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Info "custom-php.ini uploaded successfully to NFS share"
+        } else {
+            throw "Upload failed"
+        }
+    } catch {
+        Write-CustomError "Failed to upload custom-php.ini"
+        exit 1
+    }
+} else {
+    Write-CustomError "custom-php.ini file not found at $phpIniPath"
+    exit 1
+}
+
 Write-Info "Post-provision hook completed successfully!"

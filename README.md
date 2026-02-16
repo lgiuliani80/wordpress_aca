@@ -96,6 +96,10 @@ Optional parameters with defaults:
 azd env set MYSQL_ADMIN_USER 'mysqladmin'
 azd env set WORDPRESS_DB_NAME 'wordpress'
 azd env set SITE_NAME 'wpsite'
+azd env set WORDPRESS_IMAGE 'wordpress:php8.2-fpm'
+azd env set NGINX_IMAGE 'nginx:alpine'
+azd env set ALLOWED_IP_ADDRESS ''          # IP to allow through MySQL firewall
+azd env set PHP_SESSIONS_IN_REDIS false     # Enable Redis-backed PHP sessions
 ```
 
 #### 4. Deploy updates

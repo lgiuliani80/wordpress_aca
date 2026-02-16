@@ -139,6 +139,7 @@ Defined in `.env.template` and used in `infra/main.parameters.json`:
 - `WORDPRESS_IMAGE` (default: wordpress:php8.2-fpm)
 - `NGINX_IMAGE` (default: nginx:alpine)
 - `ALLOWED_IP_ADDRESS` (default: empty)
+- `PHP_SESSIONS_IN_REDIS` (default: false — enables Redis-backed PHP sessions and disables sticky sessions)
 
 **Auto-set by azd:**
 - `AZURE_ENV_NAME` (your environment name)

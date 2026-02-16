@@ -136,6 +136,7 @@ All existing deployment methods continue to work:
 - `WORDPRESS_IMAGE` - Default: wordpress:php8.2-fpm
 - `NGINX_IMAGE` - Default: nginx:alpine
 - `ALLOWED_IP_ADDRESS` - Default: empty
+- `PHP_SESSIONS_IN_REDIS` - Default: false (when true, configures PHP to store sessions in Redis and disables sticky sessions)
 
 ### Auto-set by azd
 - `AZURE_ENV_NAME` - Your environment name

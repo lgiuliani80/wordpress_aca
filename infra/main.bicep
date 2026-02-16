@@ -30,6 +30,9 @@ param sitename string = 'wpsite'
 @description('Allowed IP address to whitelist for Storage Account access')
 param allowedIpAddress string = ''
 
+@description('Enable PHP sessions in Redis (1=enabled, 0=disabled with sticky sessions)')
+param phpSessionsInRedis bool = false
+
 
 // Variables
 var uniqueSuffix = take(uniqueString(resourceGroup().id),4)
@@ -39,6 +42,15 @@ var redisName = 'redis-${environmentName}-${uniqueSuffix}'
 var vnetName = 'vnet-${environmentName}'
 var containerAppEnvName = 'cae-${environmentName}'
 var wordpressAppName = 'ca-${sitename}-${environmentName}'
+
+var phpRedisSessionsConfig = 'ini_set(\'session.save_handler\', \'redis\'); ini_set(\'session.save_path\', \'tcp://\' . getenv(\'REDIS_HOST\') . \'?auth=\' . getenv(\'REDIS_PASSWORD\'));'
+
+var phpFpmCommand = phpSessionsInRedis
+  ? 'pecl install redis && docker-php-ext-enable redis && docker-entrypoint.sh php-fpm'
+  : 'docker-entrypoint.sh php-fpm'
+
+func getWpConfigExtra(configs string, phpSessionsInRedis bool) string => 
+  '${configs}${(phpSessionsInRedis ? phpRedisSessionsConfig : '')}'
 
 // Virtual Network for private networking
 resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
@@ -184,6 +196,15 @@ resource nginxConfigNfsShare 'Microsoft.Storage/storageAccounts/fileServices/sha
   }
 }
 
+// NFS File Share for PHP configuration
+resource phpConfigNfsShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  parent: files_default
+  name: 'php-config'
+  properties: {
+    enabledProtocols: 'NFS'
+  }
+}
+
 // Private DNS Zone for Storage Account
 resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.file.${environment().suffixes.storage}'
@@ -294,6 +315,15 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2021-05-01' = {
   ]
 }
 
+// Disable SSL enforcement for MySQL
+resource mysqlSslConfig 'Microsoft.DBforMySQL/flexibleServers/configurations@2023-12-30' = {
+  parent: mysqlServer
+  name: 'require_secure_transport'
+  properties: {
+    value: 'OFF'
+    source: 'user-override'
+  }
+}
 
 // MySQL Database
 resource mysqlDatabase 'Microsoft.DBforMySQL/flexibleServers/databases@2021-05-01' = {
@@ -478,6 +508,23 @@ resource wordpressNfsStorage 'Microsoft.App/managedEnvironments/storages@2025-02
   ]
 }
 
+resource phpConfigNfsStorage 'Microsoft.App/managedEnvironments/storages@2025-02-02-preview' = {
+  parent: containerAppEnv
+  name: 'php-config-nfs-storage'
+  properties: {
+    nfsAzureFile: {
+      server: '${storageAccountName}.file.${environment().suffixes.storage}'
+      shareName: '/${storageAccountName}/php-config'
+      accessMode: 'ReadOnly'
+    }
+  }
+  dependsOn: [
+    phpConfigNfsShare
+    storagePrivateEndpoint
+    storagePrivateDnsZoneGroup
+  ]
+}
+
 // WordPress Container App with Nginx + PHP-FPM
 // WordPress files and nginx config are mounted via NFS-enabled Azure Files
 resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
@@ -494,7 +541,7 @@ resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
         transport: 'http'
         allowInsecure: false
         stickySessions: {
-          affinity: 'sticky' // TODO: this can be removed if the backing of sessions is done via Redis or similar, but for simplicity we use in-memory session handling in this example, which requires sticky sessions to work properly
+          affinity: phpSessionsInRedis ? 'none' : 'sticky'
         }
       }
       secrets: [
@@ -527,10 +574,49 @@ resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
               mountPath: '/etc/nginx'
             }
           ]
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                port: 80
+                path: '/health'
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 30
+              timeoutSeconds: 5
+            }
+            {
+              type: 'Liveness'
+              httpGet: {
+                port: 80
+                path: '/health'
+              }
+              periodSeconds: 30
+              failureThreshold: 3
+              timeoutSeconds: 5
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                port: 80
+                path: '/wp-admin/install.php'
+              }
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 5
+            }
+          ]
         }
         {
           name: 'php-fpm'
           image: wordpressImage
+          // Install phpredis extension at startup if Redis sessions are enabled
+          command: phpSessionsInRedis ? [
+            '/bin/bash'
+            '-c'
+            'pecl install redis && docker-php-ext-enable redis && docker-entrypoint.sh php-fpm'
+          ] : null
           resources: {
             cpu: json('3.0')
             memory: '6Gi'
@@ -552,9 +638,17 @@ resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
               name: 'WORDPRESS_DB_NAME'
               value: wordpressDbName
             }
+            // FS_METHOD configuration directive that tells WordPress to use direct file system access
+            // instead of attempting to use FTP or SSH for file operations. This is commonly used in
+            // containerized environments like Docker where direct file system access is available and
+            // FTP/SSH credentials are not configured or needed.
             {
               name: 'WORDPRESS_CONFIG_EXTRA'
-              value: 'define(\'FS_METHOD\', \'direct\');'
+              value: getWpConfigExtra('define(\'FS_METHOD\', \'direct\'); define(\'WP_DEBUG_LOG\', \'php://stderr\');', phpSessionsInRedis)
+            }
+            {
+              name: 'WORDPRESS_DEBUG'
+              value: '1'
             }
             {
               name: 'REDIS_HOST'
@@ -569,6 +663,41 @@ resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
             {
               volumeName: 'wordpress-files'
               mountPath: '/var/www/html'
+            }
+            {
+              volumeName: 'php-config'
+              mountPath: '/usr/local/etc/php/conf.d/custom-php.ini'
+              subPath: 'custom-php.ini'
+            }
+          ]
+          probes: [
+            {
+              type: 'Startup'
+              tcpSocket: {
+                port: 9000
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              failureThreshold: 30
+              timeoutSeconds: 3
+            }
+            {
+              type: 'Liveness'
+              tcpSocket: {
+                port: 9000
+              }
+              periodSeconds: 30
+              failureThreshold: 3
+              timeoutSeconds: 3
+            }
+            {
+              type: 'Readiness'
+              tcpSocket: {
+                port: 9000
+              }
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 3
             }
           ]
         }
@@ -598,12 +727,18 @@ resource wordpressApp 'Microsoft.App/containerApps@2024-02-02-preview' = {
           storageName: 'nginx-config-nfs-storage'
           storageType: 'NfsAzureFile'
         }
+        {
+          name: 'php-config'
+          storageName: 'php-config-nfs-storage'
+          storageType: 'NfsAzureFile'
+        }
       ]
     }
   }
   dependsOn: [
     wordpressNfsStorage
     nginxConfigNfsStorage
+    phpConfigNfsStorage
     mysqlDatabase
     redisPrivateDnsZoneGroup
   ]

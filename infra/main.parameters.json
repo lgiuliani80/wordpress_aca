@@ -28,6 +28,9 @@
     },
     "allowedIpAddress": {
       "value": "${ALLOWED_IP_ADDRESS=}"
+    },
+    "phpSessionsInRedis": {
+      "value": "${PHP_SESSIONS_IN_REDIS=false}"
     }
   }
 }

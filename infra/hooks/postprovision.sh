@@ -120,4 +120,29 @@ else
     exit 1
 fi
 
+# Upload custom-php.ini to NFS share
+PHP_INI_PATH="$(dirname "$0")/../custom-php.ini"
+
+if [ -f "$PHP_INI_PATH" ]; then
+    print_info "Uploading custom-php.ini to NFS share..."
+    
+    az storage file upload \
+        --account-name "$STORAGE_ACCOUNT_NAME" \
+        --account-key "$STORAGE_KEY" \
+        --share-name "php-config" \
+        --source "$PHP_INI_PATH" \
+        --path "custom-php.ini" \
+        --output table
+    
+    if [ $? -eq 0 ]; then
+        print_info "custom-php.ini uploaded successfully to NFS share"
+    else
+        print_error "Failed to upload custom-php.ini"
+        exit 1
+    fi
+else
+    print_error "custom-php.ini file not found at $PHP_INI_PATH"
+    exit 1
+fi
+
 print_info "Post-provision hook completed successfully!"

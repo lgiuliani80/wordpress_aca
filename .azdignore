@@ -2,10 +2,6 @@
 .git/
 .gitignore
 
-# Ignore legacy deployment scripts (using azd now)
-deploy.sh
-deploy.ps1
-
 # Ignore old parameter files (using infra/main.parameters.json now)
 parameters.json
 parameters.dev.json
