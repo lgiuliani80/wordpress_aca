@@ -59,8 +59,10 @@ For each environment in Azure DevOps, configure the following variables:
 |---------------|-------------|---------|
 | `AZURE_ENV_NAME` | Environment name (1-9 lowercase/numbers) | `dev`, `prod1` |
 | `AZURE_LOCATION` | Azure region | `eastus`, `westeurope` |
-| `AZURE_RESOURCE_GROUP` | Resource group name (optional if using parameter) | `rg-wordpress-dev` |
+| `AZURE_RESOURCE_GROUP` | Resource group name (required if not using parameter) | `rg-wordpress-dev` |
 | `MYSQL_ADMIN_PASSWORD` | MySQL admin password (min 8 chars, upper/lower/number/special) | `P@ssw0rd123!` |
+
+**Note**: Either `AZURE_RESOURCE_GROUP` variable or the pipeline `resourceGroup` parameter must be provided.
 
 #### Optional Variables (with defaults):
 
@@ -154,6 +156,7 @@ All parameters are read from Azure DevOps environment variables and passed to az
 
 **Required variables (validation fails if null):**
 - `AZURE_ENV_NAME`, `AZURE_LOCATION`, `MYSQL_ADMIN_PASSWORD`
+- `AZURE_RESOURCE_GROUP` (or provide via pipeline parameter)
 
 **Optional with defaults (automatically set if not provided):**
 - `MYSQL_ADMIN_USER` (default: `mysqladmin`)
@@ -161,12 +164,13 @@ All parameters are read from Azure DevOps environment variables and passed to az
 - `SITE_NAME` (default: `wpsite`)
 - `WORDPRESS_IMAGE` (default: `wordpress:php8.2-fpm`)
 - `NGINX_IMAGE` (default: `nginx:alpine`)
-- `ALLOWED_IP_ADDRESS` (default: empty)
+- `ALLOWED_IP_ADDRESS` (default: empty = no IP restrictions)
 - `PHP_SESSIONS_IN_REDIS` (default: `false`)
 
-**Resource Group:**
-- Can be specified as pipeline parameter or `AZURE_RESOURCE_GROUP` variable
-- Pipeline creates it if it doesn't exist
+**Resource Group Handling:**
+- Must be specified via pipeline parameter OR `AZURE_RESOURCE_GROUP` variable
+- Pipeline creates it if it doesn't exist in the specified `AZURE_LOCATION`
+- If resource group exists in a different location, `AZURE_LOCATION` is updated to match
 
 ## Security Best Practices
 

@@ -162,8 +162,9 @@ stages:
                         EXISTING_LOCATION=$(az group show --name "$RESOURCE_GROUP" --query location -o tsv)
                         echo "Existing location: $EXISTING_LOCATION"
                         if [ "$EXISTING_LOCATION" != "$AZURE_LOCATION" ]; then
-                          echo "WARNING: Resource group exists in location '$EXISTING_LOCATION' but deployment location is '$AZURE_LOCATION'"
-                          echo "Using existing resource group location: $EXISTING_LOCATION"
+                          echo "WARNING: Resource group exists in location '$EXISTING_LOCATION' but AZURE_LOCATION is set to '$AZURE_LOCATION'"
+                          echo "Updating AZURE_LOCATION to match existing resource group location: $EXISTING_LOCATION"
+                          export AZURE_LOCATION="$EXISTING_LOCATION"
                         fi
                       else
                         echo "Resource group '$RESOURCE_GROUP' does not exist. Creating in location '$AZURE_LOCATION'..."
