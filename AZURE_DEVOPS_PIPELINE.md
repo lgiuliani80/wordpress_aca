@@ -150,16 +150,19 @@ The pipeline accepts the resource group name as a parameter. If not provided via
 ```
 
 ### Environment Variable Mapping
-All parameters are read from Azure DevOps environment variables and passed to azd. The pipeline validates that all required variables are not null before proceeding:
+All parameters are read from Azure DevOps environment variables and passed to azd. The pipeline validates that all truly required variables are not null before proceeding:
 
 **Required variables (validation fails if null):**
 - `AZURE_ENV_NAME`, `AZURE_LOCATION`, `MYSQL_ADMIN_PASSWORD`
-- `MYSQL_ADMIN_USER`, `WORDPRESS_DB_NAME`, `SITE_NAME`
-- `WORDPRESS_IMAGE`, `NGINX_IMAGE`
 
-**Optional with defaults:**
-- `ALLOWED_IP_ADDRESS` (empty by default)
-- `PHP_SESSIONS_IN_REDIS` (false by default)
+**Optional with defaults (automatically set if not provided):**
+- `MYSQL_ADMIN_USER` (default: `mysqladmin`)
+- `WORDPRESS_DB_NAME` (default: `wordpress`)
+- `SITE_NAME` (default: `wpsite`)
+- `WORDPRESS_IMAGE` (default: `wordpress:php8.2-fpm`)
+- `NGINX_IMAGE` (default: `nginx:alpine`)
+- `ALLOWED_IP_ADDRESS` (default: empty)
+- `PHP_SESSIONS_IN_REDIS` (default: `false`)
 
 **Resource Group:**
 - Can be specified as pipeline parameter or `AZURE_RESOURCE_GROUP` variable

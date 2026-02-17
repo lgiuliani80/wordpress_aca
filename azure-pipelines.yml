@@ -141,31 +141,6 @@ stages:
                         VALIDATION_FAILED=1
                       fi
                       
-                      if [ -z "$MYSQL_ADMIN_USER" ]; then
-                        echo "ERROR: MYSQL_ADMIN_USER is required and cannot be empty"
-                        VALIDATION_FAILED=1
-                      fi
-                      
-                      if [ -z "$WORDPRESS_DB_NAME" ]; then
-                        echo "ERROR: WORDPRESS_DB_NAME is required and cannot be empty"
-                        VALIDATION_FAILED=1
-                      fi
-                      
-                      if [ -z "$SITE_NAME" ]; then
-                        echo "ERROR: SITE_NAME is required and cannot be empty"
-                        VALIDATION_FAILED=1
-                      fi
-                      
-                      if [ -z "$WORDPRESS_IMAGE" ]; then
-                        echo "ERROR: WORDPRESS_IMAGE is required and cannot be empty"
-                        VALIDATION_FAILED=1
-                      fi
-                      
-                      if [ -z "$NGINX_IMAGE" ]; then
-                        echo "ERROR: NGINX_IMAGE is required and cannot be empty"
-                        VALIDATION_FAILED=1
-                      fi
-                      
                       if [ $VALIDATION_FAILED -eq 1 ]; then
                         echo ""
                         echo "Validation failed. Please ensure all required variables are set."
@@ -190,8 +165,7 @@ stages:
                         fi
                       else
                         echo "Resource group '$RESOURCE_GROUP' does not exist. Creating in location '$AZURE_LOCATION'..."
-                        az group create --name "$RESOURCE_GROUP" --location "$AZURE_LOCATION"
-                        if [ $? -eq 0 ]; then
+                        if az group create --name "$RESOURCE_GROUP" --location "$AZURE_LOCATION"; then
                           echo "Resource group created successfully"
                         else
                           echo "ERROR: Failed to create resource group"
