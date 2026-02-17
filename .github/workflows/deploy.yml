@@ -1,0 +1,198 @@
+# GitHub Actions Workflow for azd deployment
+# This workflow deploys WordPress on Azure Container Apps using Azure Developer CLI (azd)
+# with OIDC authentication and environment variables from GitHub
+
+name: Deploy WordPress to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      resourceGroup:
+        description: 'Resource Group Name (optional if using environment variable)'
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Azure Developer CLI
+        run: |
+          echo "Installing Azure Developer CLI..."
+          curl -fsSL https://aka.ms/install-azd.sh | bash
+          
+          # Add azd to PATH for this session
+          echo "$HOME/.azd/bin" >> $GITHUB_PATH
+          
+          # Verify installation
+          azd version
+      
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Set environment variables and deploy
+        env:
+          # Required variables from GitHub secrets/vars
+          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          MYSQL_ADMIN_PASSWORD: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
+          # Optional variables with defaults
+          MYSQL_ADMIN_USER: ${{ vars.MYSQL_ADMIN_USER }}
+          WORDPRESS_DB_NAME: ${{ vars.WORDPRESS_DB_NAME }}
+          SITE_NAME: ${{ vars.SITE_NAME }}
+          ALLOWED_IP_ADDRESS: ${{ vars.ALLOWED_IP_ADDRESS }}
+          WORDPRESS_IMAGE: ${{ vars.WORDPRESS_IMAGE }}
+          NGINX_IMAGE: ${{ vars.NGINX_IMAGE }}
+          PHP_SESSIONS_IN_REDIS: ${{ vars.PHP_SESSIONS_IN_REDIS }}
+          AZURE_RESOURCE_GROUP_INPUT: ${{ vars.AZURE_RESOURCE_GROUP }}
+          RESOURCE_GROUP_PARAM: ${{ inputs.resourceGroup }}
+        run: |
+          set -e
+          
+          echo "=========================================="
+          echo "Azure Login Information"
+          echo "=========================================="
+          echo "Subscription ID: $(az account show --query id -o tsv)"
+          echo "Tenant ID: $(az account show --query tenantId -o tsv)"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Resource Group Parameter: ${{ inputs.resourceGroup }}"
+          echo ""
+          
+          # Set azd environment variables
+          echo "=========================================="
+          echo "Setting azd environment variables"
+          echo "=========================================="
+          
+          # Required variables - already set from env
+          export AZURE_ENV_NAME="${AZURE_ENV_NAME}"
+          export AZURE_LOCATION="${AZURE_LOCATION}"
+          export AZURE_SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID}"
+          export MYSQL_ADMIN_PASSWORD="${MYSQL_ADMIN_PASSWORD}"
+          
+          # Resource group from parameter or variable
+          RESOURCE_GROUP="${RESOURCE_GROUP_PARAM}"
+          if [ -z "$RESOURCE_GROUP" ]; then
+            RESOURCE_GROUP="${AZURE_RESOURCE_GROUP_INPUT}"
+          fi
+          
+          # Optional variables with defaults
+          export MYSQL_ADMIN_USER="${MYSQL_ADMIN_USER:-mysqladmin}"
+          export WORDPRESS_DB_NAME="${WORDPRESS_DB_NAME:-wordpress}"
+          export SITE_NAME="${SITE_NAME:-wpsite}"
+          # Empty ALLOWED_IP_ADDRESS means no IP-based firewall restrictions
+          export ALLOWED_IP_ADDRESS="${ALLOWED_IP_ADDRESS:-}"
+          export WORDPRESS_IMAGE="${WORDPRESS_IMAGE:-wordpress:php8.2-fpm}"
+          export NGINX_IMAGE="${NGINX_IMAGE:-nginx:alpine}"
+          export PHP_SESSIONS_IN_REDIS="${PHP_SESSIONS_IN_REDIS:-false}"
+          
+          echo "AZURE_ENV_NAME: $AZURE_ENV_NAME"
+          echo "AZURE_LOCATION: $AZURE_LOCATION"
+          echo "AZURE_SUBSCRIPTION_ID: $AZURE_SUBSCRIPTION_ID"
+          echo "RESOURCE_GROUP: $RESOURCE_GROUP"
+          echo "MYSQL_ADMIN_USER: $MYSQL_ADMIN_USER"
+          echo "WORDPRESS_DB_NAME: $WORDPRESS_DB_NAME"
+          echo "SITE_NAME: $SITE_NAME"
+          echo "WORDPRESS_IMAGE: $WORDPRESS_IMAGE"
+          echo "NGINX_IMAGE: $NGINX_IMAGE"
+          echo "PHP_SESSIONS_IN_REDIS: $PHP_SESSIONS_IN_REDIS"
+          echo ""
+          
+          # Validate required variables
+          echo "=========================================="
+          echo "Validating required parameters"
+          echo "=========================================="
+          
+          VALIDATION_FAILED=0
+          
+          if [ -z "$AZURE_ENV_NAME" ]; then
+            echo "ERROR: AZURE_ENV_NAME is required and cannot be empty"
+            VALIDATION_FAILED=1
+          fi
+          
+          if [ -z "$AZURE_LOCATION" ]; then
+            echo "ERROR: AZURE_LOCATION is required and cannot be empty"
+            VALIDATION_FAILED=1
+          fi
+          
+          if [ -z "$RESOURCE_GROUP" ]; then
+            echo "ERROR: Resource Group is required. Provide it as a parameter or set AZURE_RESOURCE_GROUP variable"
+            VALIDATION_FAILED=1
+          fi
+          
+          if [ -z "$MYSQL_ADMIN_PASSWORD" ]; then
+            echo "ERROR: MYSQL_ADMIN_PASSWORD is required and cannot be empty"
+            VALIDATION_FAILED=1
+          fi
+          
+          if [ $VALIDATION_FAILED -eq 1 ]; then
+            echo ""
+            echo "Validation failed. Please ensure all required variables are set."
+            exit 1
+          fi
+          
+          echo "All required parameters validated successfully"
+          echo ""
+          
+          # Create resource group if it doesn't exist
+          echo "=========================================="
+          echo "Checking resource group"
+          echo "=========================================="
+          
+          if az group show --name "$RESOURCE_GROUP" &>/dev/null; then
+            echo "Resource group '$RESOURCE_GROUP' already exists"
+            EXISTING_LOCATION=$(az group show --name "$RESOURCE_GROUP" --query location -o tsv)
+            echo "Existing location: $EXISTING_LOCATION"
+            if [ "$EXISTING_LOCATION" != "$AZURE_LOCATION" ]; then
+              echo "WARNING: Resource group exists in location '$EXISTING_LOCATION' but AZURE_LOCATION is set to '$AZURE_LOCATION'"
+              echo "Updating AZURE_LOCATION to match existing resource group location: $EXISTING_LOCATION"
+              export AZURE_LOCATION="$EXISTING_LOCATION"
+            fi
+          else
+            echo "Resource group '$RESOURCE_GROUP' does not exist. Creating in location '$AZURE_LOCATION'..."
+            if az group create --name "$RESOURCE_GROUP" --location "$AZURE_LOCATION"; then
+              echo "Resource group created successfully"
+            else
+              echo "ERROR: Failed to create resource group"
+              exit 1
+            fi
+          fi
+          echo ""
+          
+          # Set resource group for azd
+          export AZURE_RESOURCE_GROUP="$RESOURCE_GROUP"
+          
+          echo "=========================================="
+          echo "Running azd deployment"
+          echo "=========================================="
+          
+          # Run azd up (provision infrastructure and deploy)
+          azd up --no-prompt
+          
+          echo ""
+          echo "=========================================="
+          echo "Deployment completed successfully!"
+          echo "=========================================="

@@ -47,28 +47,29 @@ This project provides Infrastructure as Code (IaC) using Azure Bicep to deploy a
 ## Deployment
 
 This project supports multiple deployment options:
-1. **Azure DevOps Pipeline** - Automated CI/CD with OIDC authentication (recommended for production)
+1. **GitHub Actions Workflow** - Automated CI/CD with OIDC authentication (recommended for production)
 2. **Azure Developer CLI (azd)** - Interactive local deployment with automatic parameter validation
 3. **Azure CLI** - Manual deployment for advanced scenarios
 
-### Option 1: Azure DevOps Pipeline (Recommended for Production)
+### Option 1: GitHub Actions Workflow (Recommended for Production)
 
-For automated deployments using Azure DevOps with OIDC authentication, see the [Azure DevOps Pipeline Setup Guide](./AZURE_DEVOPS_PIPELINE.md).
+For automated deployments using GitHub Actions with OIDC authentication, see the [GitHub Workflow Setup Guide](./GITHUB_WORKFLOW.md).
 
-The pipeline provides:
+The workflow provides:
 - **Workflow Dispatch**: Manual trigger with environment and resource group parameters
-- **OIDC Authentication**: Secure authentication without storing credentials
-- **Environment Variables**: All parameters read from Azure DevOps environment variables
+- **OIDC Authentication**: Secure authentication without storing credentials (uses federated credentials)
+- **Environment Variables**: All parameters read from GitHub secrets and environment variables
 - **Automatic Resource Group Creation**: Creates resource group if it doesn't exist
 - **Parameter Validation**: Ensures all required variables are not null
 - **Automated Deployment**: Runs `azd up` with all configured parameters
 
 Quick setup:
-1. Configure OIDC service connection in Azure DevOps
-2. Create environments (dev, staging, prod) with variables
-3. Run the pipeline and select environment and resource group
+1. Configure OIDC federated credentials in Azure for GitHub
+2. Create GitHub environments (dev, staging, prod) with variables
+3. Set required secrets (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, MYSQL_ADMIN_PASSWORD)
+4. Run the workflow and select environment and resource group
 
-See [AZURE_DEVOPS_PIPELINE.md](./AZURE_DEVOPS_PIPELINE.md) for detailed setup instructions.
+See [GITHUB_WORKFLOW.md](./GITHUB_WORKFLOW.md) for detailed setup instructions.
 
 ### Option 2: Quick Start with Azure Developer CLI (azd)
 
@@ -344,7 +345,7 @@ azd down
 This project includes comprehensive documentation:
 
 - **[README.md](./README.md)** - This file: Overview and quick start guide
-- **[AZURE_DEVOPS_PIPELINE.md](./AZURE_DEVOPS_PIPELINE.md)** - Azure DevOps pipeline setup and usage guide
+- **[GITHUB_WORKFLOW.md](./GITHUB_WORKFLOW.md)** - GitHub Actions workflow setup and usage guide
 - **[AZD_GUIDE.md](./AZD_GUIDE.md)** - Complete Azure Developer CLI usage guide with detailed examples
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed architecture and component documentation
 - **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)** - File organization and project structure reference
