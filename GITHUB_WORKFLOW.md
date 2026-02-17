@@ -161,7 +161,7 @@ on:
     inputs:
       environment:
         description: 'Environment'
-        required: true
+        required: false
         default: 'dev'
         type: string
       resourceGroup:
