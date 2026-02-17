@@ -62,9 +62,6 @@ GitHub supports environment-specific variables. Configure these for each environ
 |---------------|-------------|---------|
 | `AZURE_ENV_NAME` | Environment name (1-9 lowercase/numbers) | `dev`, `prod1` |
 | `AZURE_LOCATION` | Azure region | `eastus`, `westeurope` |
-| `AZURE_RESOURCE_GROUP` | Resource group name (required if not using parameter) | `rg-wordpress-dev` |
-
-**Note**: Either `AZURE_RESOURCE_GROUP` variable or the workflow `resourceGroup` input must be provided.
 
 #### Optional Variables (with defaults):
 
@@ -104,8 +101,30 @@ For production environments, you may want to add protection rules:
 4. Select:
    - **Branch**: Usually `main`
    - **Environment**: `dev`, `staging`, or `prod`
-   - **Resource Group Name** (optional): Leave empty to use environment variable or specify explicitly
+   - **Resource Group Name** (required): Specify the resource group name
 5. Click "Run workflow"
+
+### Reusable Workflow (workflow_call)
+
+The workflow can also be called from other workflows in your repository. This allows you to create composite workflows or trigger deployments from other automation pipelines.
+
+Example of calling this workflow from another workflow:
+
+```yaml
+jobs:
+  deploy-wordpress:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: 'dev'
+      resourceGroup: 'rg-wordpress-dev'
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      MYSQL_ADMIN_PASSWORD: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
+```
+
+### Workflow Execution
 
 The workflow will:
 1. Checkout the code
@@ -136,8 +155,28 @@ on:
           - prod
       resourceGroup:
         description: 'Resource Group Name'
-        required: false
+        required: true
         type: string
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'dev'
+        type: string
+      resourceGroup:
+        description: 'Resource Group Name'
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      MYSQL_ADMIN_PASSWORD:
+        required: true
 ```
 
 ### OIDC Authentication
@@ -151,7 +190,7 @@ on:
 ```
 
 ### Resource Group Handling
-The workflow accepts the resource group name as an input parameter. If not provided, it falls back to the `AZURE_RESOURCE_GROUP` environment variable. The workflow will:
+The workflow requires the resource group name as a mandatory input parameter. The workflow will:
 1. Check if the resource group exists
 2. If it exists, use it (and log a warning if location differs)
 3. If it doesn't exist, create it in the specified `AZURE_LOCATION`
@@ -162,7 +201,7 @@ All parameters are read from GitHub secrets/variables and passed to azd. The wor
 
 **Required variables (validation fails if null):**
 - `AZURE_ENV_NAME`, `AZURE_LOCATION`, `MYSQL_ADMIN_PASSWORD`
-- `AZURE_RESOURCE_GROUP` (or provide via workflow input)
+- `resourceGroup` (workflow input parameter)
 
 **Optional with defaults (automatically set if not provided):**
 - `MYSQL_ADMIN_USER` (default: `mysqladmin`)
@@ -172,11 +211,6 @@ All parameters are read from GitHub secrets/variables and passed to azd. The wor
 - `NGINX_IMAGE` (default: `nginx:alpine`)
 - `ALLOWED_IP_ADDRESS` (default: empty = no IP restrictions)
 - `PHP_SESSIONS_IN_REDIS` (default: `false`)
-
-**Resource Group Handling:**
-- Must be specified via workflow input OR `AZURE_RESOURCE_GROUP` variable
-- Workflow creates it if it doesn't exist in the specified `AZURE_LOCATION`
-- If resource group exists in a different location, `AZURE_LOCATION` is updated to match
 
 ## Security Best Practices
 
@@ -195,9 +229,8 @@ All parameters are read from GitHub secrets/variables and passed to azd. The wor
 - Verify that variables are not empty strings
 
 ### Workflow fails with "ERROR: Resource Group is required"
-- Provide the resource group name either:
-  - As an input when running the workflow, OR
-  - Set the `AZURE_RESOURCE_GROUP` variable in the environment
+- The resource group name is now a required parameter
+- Provide the resource group name as an input when running the workflow
 
 ### Resource group creation fails
 - Verify the service principal has permission to create resource groups

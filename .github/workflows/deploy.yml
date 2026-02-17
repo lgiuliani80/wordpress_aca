@@ -17,9 +17,29 @@ on:
           - staging
           - prod
       resourceGroup:
-        description: 'Resource Group Name (optional if using environment variable)'
-        required: false
+        description: 'Resource Group Name'
+        required: true
         type: string
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'dev'
+        type: string
+      resourceGroup:
+        description: 'Resource Group Name'
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      MYSQL_ADMIN_PASSWORD:
+        required: true
 
 permissions:
   id-token: write
@@ -70,7 +90,6 @@ jobs:
           WORDPRESS_IMAGE: ${{ vars.WORDPRESS_IMAGE }}
           NGINX_IMAGE: ${{ vars.NGINX_IMAGE }}
           PHP_SESSIONS_IN_REDIS: ${{ vars.PHP_SESSIONS_IN_REDIS }}
-          AZURE_RESOURCE_GROUP_INPUT: ${{ vars.AZURE_RESOURCE_GROUP }}
           RESOURCE_GROUP_PARAM: ${{ inputs.resourceGroup }}
         run: |
           set -e
@@ -95,11 +114,8 @@ jobs:
           export AZURE_SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID}"
           export MYSQL_ADMIN_PASSWORD="${MYSQL_ADMIN_PASSWORD}"
           
-          # Resource group from parameter or variable
+          # Resource group from required parameter
           RESOURCE_GROUP="${RESOURCE_GROUP_PARAM}"
-          if [ -z "$RESOURCE_GROUP" ]; then
-            RESOURCE_GROUP="${AZURE_RESOURCE_GROUP_INPUT}"
-          fi
           
           # Optional variables with defaults
           export MYSQL_ADMIN_USER="${MYSQL_ADMIN_USER:-mysqladmin}"
@@ -141,7 +157,7 @@ jobs:
           fi
           
           if [ -z "$RESOURCE_GROUP" ]; then
-            echo "ERROR: Resource Group is required. Provide it as a parameter or set AZURE_RESOURCE_GROUP variable"
+            echo "ERROR: Resource Group is required and cannot be empty"
             VALIDATION_FAILED=1
           fi
           
