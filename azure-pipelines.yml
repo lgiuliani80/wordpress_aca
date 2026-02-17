@@ -1,0 +1,216 @@
+# Azure DevOps Pipeline for azd deployment
+# This pipeline deploys WordPress on Azure Container Apps using Azure Developer CLI (azd)
+# with OIDC authentication and environment variables from Azure DevOps
+
+trigger: none  # No automatic triggers
+
+# Manual trigger with environment and resource group parameters
+parameters:
+  - name: environment
+    displayName: 'Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - staging
+      - prod
+  - name: resourceGroup
+    displayName: 'Resource Group Name'
+    type: string
+    default: ''
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  # Define the service connection name for OIDC authentication
+  # This should be created in Azure DevOps with federated credentials
+  azureServiceConnection: 'azure-oidc-connection'
+
+stages:
+  - stage: Deploy
+    displayName: 'Deploy to ${{ parameters.environment }}'
+    jobs:
+      - deployment: DeployAzd
+        displayName: 'Deploy with azd'
+        environment: ${{ parameters.environment }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                # Install Azure Developer CLI
+                - task: Bash@3
+                  displayName: 'Install Azure Developer CLI'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      echo "Installing Azure Developer CLI..."
+                      curl -fsSL https://aka.ms/install-azd.sh | bash
+                      
+                      # Add azd to PATH for this session
+                      export PATH=$PATH:$HOME/.azd/bin
+                      
+                      # Verify installation
+                      azd version
+
+                # Azure CLI Login with OIDC
+                - task: AzureCLI@2
+                  displayName: 'Azure Login (OIDC) and Deploy'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    addSpnToEnvironment: true
+                    inlineScript: |
+                      set -e
+                      
+                      echo "=========================================="
+                      echo "Azure Login Information"
+                      echo "=========================================="
+                      echo "Subscription ID: $(az account show --query id -o tsv)"
+                      echo "Tenant ID: $(az account show --query tenantId -o tsv)"
+                      echo "Environment: ${{ parameters.environment }}"
+                      echo "Resource Group: ${{ parameters.resourceGroup }}"
+                      echo ""
+                      
+                      # Add azd to PATH
+                      export PATH=$PATH:$HOME/.azd/bin
+                      
+                      # Set azd environment variables from Azure DevOps variables
+                      echo "=========================================="
+                      echo "Setting azd environment variables"
+                      echo "=========================================="
+                      
+                      # Required variables
+                      export AZURE_ENV_NAME="$(AZURE_ENV_NAME)"
+                      export AZURE_LOCATION="$(AZURE_LOCATION)"
+                      export AZURE_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+                      export MYSQL_ADMIN_PASSWORD="$(MYSQL_ADMIN_PASSWORD)"
+                      
+                      # Resource group from parameter or variable
+                      RESOURCE_GROUP="${{ parameters.resourceGroup }}"
+                      if [ -z "$RESOURCE_GROUP" ]; then
+                        RESOURCE_GROUP="$(AZURE_RESOURCE_GROUP)"
+                      fi
+                      
+                      # Optional variables with defaults
+                      export MYSQL_ADMIN_USER="${MYSQL_ADMIN_USER:-mysqladmin}"
+                      export WORDPRESS_DB_NAME="${WORDPRESS_DB_NAME:-wordpress}"
+                      export SITE_NAME="${SITE_NAME:-wpsite}"
+                      export ALLOWED_IP_ADDRESS="${ALLOWED_IP_ADDRESS:-}"
+                      export WORDPRESS_IMAGE="${WORDPRESS_IMAGE:-wordpress:php8.2-fpm}"
+                      export NGINX_IMAGE="${NGINX_IMAGE:-nginx:alpine}"
+                      export PHP_SESSIONS_IN_REDIS="${PHP_SESSIONS_IN_REDIS:-false}"
+                      
+                      echo "AZURE_ENV_NAME: $AZURE_ENV_NAME"
+                      echo "AZURE_LOCATION: $AZURE_LOCATION"
+                      echo "AZURE_SUBSCRIPTION_ID: $AZURE_SUBSCRIPTION_ID"
+                      echo "RESOURCE_GROUP: $RESOURCE_GROUP"
+                      echo "MYSQL_ADMIN_USER: $MYSQL_ADMIN_USER"
+                      echo "WORDPRESS_DB_NAME: $WORDPRESS_DB_NAME"
+                      echo "SITE_NAME: $SITE_NAME"
+                      echo "WORDPRESS_IMAGE: $WORDPRESS_IMAGE"
+                      echo "NGINX_IMAGE: $NGINX_IMAGE"
+                      echo "PHP_SESSIONS_IN_REDIS: $PHP_SESSIONS_IN_REDIS"
+                      echo ""
+                      
+                      # Validate required variables
+                      echo "=========================================="
+                      echo "Validating required parameters"
+                      echo "=========================================="
+                      
+                      VALIDATION_FAILED=0
+                      
+                      if [ -z "$AZURE_ENV_NAME" ]; then
+                        echo "ERROR: AZURE_ENV_NAME is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$AZURE_LOCATION" ]; then
+                        echo "ERROR: AZURE_LOCATION is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$RESOURCE_GROUP" ]; then
+                        echo "ERROR: Resource Group is required. Provide it as a parameter or set AZURE_RESOURCE_GROUP variable"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$MYSQL_ADMIN_PASSWORD" ]; then
+                        echo "ERROR: MYSQL_ADMIN_PASSWORD is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$MYSQL_ADMIN_USER" ]; then
+                        echo "ERROR: MYSQL_ADMIN_USER is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$WORDPRESS_DB_NAME" ]; then
+                        echo "ERROR: WORDPRESS_DB_NAME is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$SITE_NAME" ]; then
+                        echo "ERROR: SITE_NAME is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$WORDPRESS_IMAGE" ]; then
+                        echo "ERROR: WORDPRESS_IMAGE is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ -z "$NGINX_IMAGE" ]; then
+                        echo "ERROR: NGINX_IMAGE is required and cannot be empty"
+                        VALIDATION_FAILED=1
+                      fi
+                      
+                      if [ $VALIDATION_FAILED -eq 1 ]; then
+                        echo ""
+                        echo "Validation failed. Please ensure all required variables are set."
+                        exit 1
+                      fi
+                      
+                      echo "All required parameters validated successfully"
+                      echo ""
+                      
+                      # Create resource group if it doesn't exist
+                      echo "=========================================="
+                      echo "Checking resource group"
+                      echo "=========================================="
+                      
+                      if az group show --name "$RESOURCE_GROUP" &>/dev/null; then
+                        echo "Resource group '$RESOURCE_GROUP' already exists"
+                        EXISTING_LOCATION=$(az group show --name "$RESOURCE_GROUP" --query location -o tsv)
+                        echo "Existing location: $EXISTING_LOCATION"
+                        if [ "$EXISTING_LOCATION" != "$AZURE_LOCATION" ]; then
+                          echo "WARNING: Resource group exists in location '$EXISTING_LOCATION' but deployment location is '$AZURE_LOCATION'"
+                          echo "Using existing resource group location: $EXISTING_LOCATION"
+                        fi
+                      else
+                        echo "Resource group '$RESOURCE_GROUP' does not exist. Creating in location '$AZURE_LOCATION'..."
+                        az group create --name "$RESOURCE_GROUP" --location "$AZURE_LOCATION"
+                        if [ $? -eq 0 ]; then
+                          echo "Resource group created successfully"
+                        else
+                          echo "ERROR: Failed to create resource group"
+                          exit 1
+                        fi
+                      fi
+                      echo ""
+                      
+                      # Set resource group for azd
+                      export AZURE_RESOURCE_GROUP="$RESOURCE_GROUP"
+                      
+                      echo "=========================================="
+                      echo "Running azd deployment"
+                      echo "=========================================="
+                      
+                      # Run azd up (provision infrastructure and deploy)
+                      azd up --no-prompt
+                      
+                      echo ""
+                      echo "=========================================="
+                      echo "Deployment completed successfully!"
+                      echo "=========================================="

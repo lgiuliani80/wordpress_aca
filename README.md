@@ -46,9 +46,31 @@ This project provides Infrastructure as Code (IaC) using Azure Bicep to deploy a
 
 ## Deployment
 
-This project uses Azure Developer CLI (azd) for streamlined deployment with automatic parameter validation.
+This project supports multiple deployment options:
+1. **Azure DevOps Pipeline** - Automated CI/CD with OIDC authentication (recommended for production)
+2. **Azure Developer CLI (azd)** - Interactive local deployment with automatic parameter validation
+3. **Azure CLI** - Manual deployment for advanced scenarios
 
-### Quick Start with Azure Developer CLI (azd)
+### Option 1: Azure DevOps Pipeline (Recommended for Production)
+
+For automated deployments using Azure DevOps with OIDC authentication, see the [Azure DevOps Pipeline Setup Guide](./AZURE_DEVOPS_PIPELINE.md).
+
+The pipeline provides:
+- **Workflow Dispatch**: Manual trigger with environment and resource group parameters
+- **OIDC Authentication**: Secure authentication without storing credentials
+- **Environment Variables**: All parameters read from Azure DevOps environment variables
+- **Automatic Resource Group Creation**: Creates resource group if it doesn't exist
+- **Parameter Validation**: Ensures all required variables are not null
+- **Automated Deployment**: Runs `azd up` with all configured parameters
+
+Quick setup:
+1. Configure OIDC service connection in Azure DevOps
+2. Create environments (dev, staging, prod) with variables
+3. Run the pipeline and select environment and resource group
+
+See [AZURE_DEVOPS_PIPELINE.md](./AZURE_DEVOPS_PIPELINE.md) for detailed setup instructions.
+
+### Option 2: Quick Start with Azure Developer CLI (azd)
 
 #### 1. Clone the repository
 
@@ -127,7 +149,7 @@ azd down
 - Examples of valid names: `wprod`, `wdev`, `wstaging`, `wp1`, `prod01`
 - Examples of invalid names: `wp-prod` (hyphen), `WordPress` (uppercase), `wordpress-prod` (too long + hyphen)
 
-### Alternative: Deploy using Azure CLI manually
+### Option 3: Alternative: Deploy using Azure CLI manually
 
 If you prefer direct Azure CLI deployment without azd:
 
@@ -322,6 +344,7 @@ azd down
 This project includes comprehensive documentation:
 
 - **[README.md](./README.md)** - This file: Overview and quick start guide
+- **[AZURE_DEVOPS_PIPELINE.md](./AZURE_DEVOPS_PIPELINE.md)** - Azure DevOps pipeline setup and usage guide
 - **[AZD_GUIDE.md](./AZD_GUIDE.md)** - Complete Azure Developer CLI usage guide with detailed examples
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Detailed architecture and component documentation
 - **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)** - File organization and project structure reference
