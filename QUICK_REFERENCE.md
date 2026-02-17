@@ -2,30 +2,46 @@
 
 ## Quick Start Commands
 
-### Deploy with Script (Bash)
+### Deploy with Azure Developer CLI (azd) - **Recommended**
+```bash
+# Install azd (one-time)
+curl -fsSL https://aka.ms/install-azd.sh | bash
+
+# Login and deploy
+azd auth login
+azd init
+azd env set MYSQL_ADMIN_PASSWORD 'YourStr0ng!Password'
+azd up
+```
+
+**Learn more**: See [AZD_GUIDE.md](./AZD_GUIDE.md) for comprehensive azd documentation.
+
+### Deploy with Legacy Script (Bash)
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-### Deploy with Script (PowerShell)
+### Deploy with Legacy Script (PowerShell)
 ```powershell
 .\deploy.ps1
 ```
 
-### Deploy with Azure CLI
+### Deploy with Azure CLI (Manual)
 ```bash
 # Login
 az login
 
 # Create resource group
-az group create --name rg-wordpress-aca --location westeurope
+az group create --name rg-wordpress-aca --location norwayeast
 
-# Deploy
+# Deploy (using infra/ directory)
 az deployment group create \
   --resource-group rg-wordpress-aca \
-  --template-file main.bicep \
-  --parameters @parameters.json \
+  --template-file infra/main.bicep \
+  --parameters environmentName='wprod' \
+  --parameters location='norwayeast' \
+  --parameters mysqlAdminUser='mysqladmin' \
   --parameters mysqlAdminPassword='YourStr0ng!Password'
 ```
 
@@ -80,6 +96,37 @@ az storage account list \
 ```
 
 ## Common Management Commands
+
+### Azure Developer CLI (azd) Commands
+
+```bash
+# Deploy/update everything
+azd up
+
+# Provision infrastructure only
+azd provision
+
+# View deployment status and outputs
+azd show
+
+# List environments
+azd env list
+
+# Switch environment
+azd env select <env-name>
+
+# Set/view environment variables
+azd env set MYSQL_ADMIN_PASSWORD 'NewPassword123!'
+azd env get-values
+
+# Delete all resources
+azd down
+
+# View logs (via Azure CLI integration)
+azd exec -- az containerapp logs show --name ca-wpsite-YOUR_ENV --resource-group rg-YOUR_ENV --follow
+```
+
+### Azure CLI Management Commands
 
 ### View Logs
 ```bash
@@ -233,12 +280,23 @@ az storage file download-batch \
 
 ## Cleanup
 
-### Delete Everything
+### Using Azure Developer CLI (azd)
+```bash
+# Delete all resources (keeps environment config)
+azd down
+
+# Delete environment config too
+azd env remove <environment-name>
+```
+
+### Using Azure CLI
+
+#### Delete Everything
 ```bash
 az group delete --name rg-wordpress-aca --yes --no-wait
 ```
 
-### Delete Specific Resources
+#### Delete Specific Resources
 ```bash
 # Delete Container App only
 az containerapp delete --name ca-wordpress-YOUR_ENV --resource-group rg-wordpress-aca --yes
@@ -249,8 +307,12 @@ az mysql flexible-server delete --resource-group rg-wordpress-aca --name mysql-Y
 
 ## Support & Resources
 
-- **Documentation**: See README.md, ARCHITECTURE.md, TROUBLESHOOTING.md
-- **Azure Docs**: https://docs.microsoft.com/azure/container-apps/
+- **Azure Developer CLI Guide**: See [AZD_GUIDE.md](./AZD_GUIDE.md)
+- **General Documentation**: See [README.md](./README.md)
+- **Architecture Details**: See [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Troubleshooting**: See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+- **Azure Container Apps**: https://docs.microsoft.com/azure/container-apps/
+- **Azure Developer CLI**: https://learn.microsoft.com/azure/developer/azure-developer-cli/
 - **WordPress Docs**: https://wordpress.org/documentation/
 - **Issues**: Create issue in GitHub repository
 - **Azure Support**: Open ticket in Azure Portal

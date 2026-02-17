@@ -3,12 +3,19 @@
 *.publishsettings
 *.azurePubxml
 
+# Azure Developer CLI
+.azure/*
+!.azure/.gitkeep
+
 # Secrets and sensitive data
 *.secret
 *.key
 *.pem
 secrets.json
 parameters.prod.json
+.env
+*.env
+!.env.template
 
 # Bicep generated files
 *.json.bak

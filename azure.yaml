@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: wordpress-aca
+metadata:
+  template: wordpress-aca@0.0.1-beta
+
+# Hooks configuration
+hooks:
+  preprovision:
+    # For Unix-like systems (Linux, macOS, WSL)
+    posix:
+      shell: sh
+      run: ./infra/hooks/preprovision.sh
+      continueOnError: false
+      interactive: false
+    # For Windows systems (PowerShell)
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/preprovision.ps1
+      continueOnError: false
+      interactive: false
+  
+  postprovision:
+    # For Unix-like systems (Linux, macOS, WSL)
+    posix:
+      shell: sh
+      run: ./infra/hooks/postprovision.sh
+      continueOnError: false
+      interactive: false
+    # For Windows systems (PowerShell)
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1
+      continueOnError: false
+      interactive: false
+    
+# Infrastructure configuration
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+# No services to deploy - this is infrastructure only (WordPress containers are defined in Bicep)
+services: {}

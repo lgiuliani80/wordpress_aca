@@ -1,0 +1,14 @@
+# Ignore git files
+.git/
+.gitignore
+
+# Ignore old parameter files (using infra/main.parameters.json now)
+parameters.json
+parameters.dev.json
+
+# Ignore documentation
+*.md
+
+# Ignore temporary files
+*.tmp
+.DS_Store
