@@ -40,9 +40,11 @@ jobs:
           echo "Installing Azure Developer CLI..."
           curl -fsSL https://aka.ms/install-azd.sh | bash
           
-          # Add azd to PATH for this session
+          # Add azd to PATH for subsequent steps
           echo "$HOME/.azd/bin" >> $GITHUB_PATH
-          
+      
+      - name: Verify azd installation
+        run: |
           # Verify installation
           azd version
       

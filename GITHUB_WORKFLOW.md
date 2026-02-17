@@ -20,7 +20,7 @@ The workflow uses OpenID Connect (OIDC) for secure authentication to Azure witho
    - Select "GitHub Actions deploying Azure resources"
    - Fill in:
      - **Organization**: Your GitHub organization or username
-     - **Repository**: `wordpress_aca` (or your repository name)
+     - **Repository**: Your repository name (e.g., `wordpress_aca`)
      - **Entity type**: Environment
      - **Environment name**: `dev` (create separate credentials for `staging` and `prod` too)
      - **Name**: A descriptive name (e.g., "github-wordpress-dev")
