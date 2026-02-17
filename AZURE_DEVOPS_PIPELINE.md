@@ -13,7 +13,7 @@ The pipeline uses OpenID Connect (OIDC) for secure authentication to Azure witho
 #### Steps to create the service connection:
 
 1. **In Azure Portal:**
-   - Create an App Registration in Azure Active Directory
+   - Create an App Registration in Microsoft Entra ID (formerly Azure Active Directory)
    - Note the Application (client) ID and Directory (tenant) ID
    - Under "Certificates & secrets", go to "Federated credentials"
    - Add a new credential with:
@@ -69,7 +69,7 @@ For each environment in Azure DevOps, configure the following variables:
 | `MYSQL_ADMIN_USER` | `mysqladmin` | MySQL admin username |
 | `WORDPRESS_DB_NAME` | `wordpress` | WordPress database name |
 | `SITE_NAME` | `wpsite` | Site name for resource naming |
-| `ALLOWED_IP_ADDRESS` | (empty) | IP address to allow access |
+| `ALLOWED_IP_ADDRESS` | (empty) | IP address to allow access (empty = no IP restrictions) |
 | `WORDPRESS_IMAGE` | `wordpress:php8.2-fpm` | WordPress Docker image |
 | `NGINX_IMAGE` | `nginx:alpine` | Nginx Docker image |
 | `PHP_SESSIONS_IN_REDIS` | `false` | Use Redis for PHP sessions |

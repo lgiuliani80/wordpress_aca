@@ -24,7 +24,8 @@ pool:
 
 variables:
   # Define the service connection name for OIDC authentication
-  # This should be created in Azure DevOps with federated credentials
+  # This should match the service connection name created in Azure DevOps
+  # Update this value if you use a different service connection name
   azureServiceConnection: 'azure-oidc-connection'
 
 stages:
@@ -97,6 +98,7 @@ stages:
                       export MYSQL_ADMIN_USER="${MYSQL_ADMIN_USER:-mysqladmin}"
                       export WORDPRESS_DB_NAME="${WORDPRESS_DB_NAME:-wordpress}"
                       export SITE_NAME="${SITE_NAME:-wpsite}"
+                      # Empty ALLOWED_IP_ADDRESS means no IP-based firewall restrictions
                       export ALLOWED_IP_ADDRESS="${ALLOWED_IP_ADDRESS:-}"
                       export WORDPRESS_IMAGE="${WORDPRESS_IMAGE:-wordpress:php8.2-fpm}"
                       export NGINX_IMAGE="${NGINX_IMAGE:-nginx:alpine}"
